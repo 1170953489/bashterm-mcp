@@ -1,18 +1,18 @@
 {
   "name": "vscode-terminal-mcp",
-  "displayName": "Terminal MCP Server",
-  "description": "MCP server that provides visible terminal sessions in VSCode for Claude Code and subagents",
-  "version": "0.1.6",
-  "publisher": "sirlordt",
+  "displayName": "Terminal MCP Server (Windows Compatible)",
+  "description": "MCP server that provides visible terminal sessions in VSCode. Supports Windows, macOS and Linux.",
+  "version": "0.1.7",
+  "publisher": "hcdb",
   "license": "MIT",
-  "author": "sirlordt",
+  "author": "hcdb",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sirlordt/vscode-terminal-mcp.git"
+    "url": "https://github.com/1170953489/vscode-terminal-mcp.git"
   },
-  "homepage": "https://github.com/sirlordt/vscode-terminal-mcp#readme",
+  "homepage": "https://github.com/1170953489/vscode-terminal-mcp#readme",
   "bugs": {
-    "url": "https://github.com/sirlordt/vscode-terminal-mcp/issues"
+    "url": "https://github.com/1170953489/vscode-terminal-mcp/issues"
   },
   "keywords": [
     "mcp",
