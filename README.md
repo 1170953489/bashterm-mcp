@@ -1,6 +1,6 @@
 # bashterm-mcp
 
-[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp)](https://www.npmjs.com/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/bashterm-mcp/releases)
+[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp)](https://www.npmjs.com/package/bashterm-mcp) [![VSIX](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?label=vsix&color=blue)](https://github.com/1170953489/bashterm-mcp/releases)
 
 MCP server that executes commands in **visible VSCode terminal tabs** with full output capture. Unlike inline execution, every command runs in a real terminal you can see, scroll, and interact with.
 
@@ -295,12 +295,12 @@ This commonly happens with commands that produce heavy TUI output (progress bars
 3. Commands execute via `child_process.exec()` for reliable cross-platform output capture and exit code detection
 4. Output is stored in circular buffers with pagination support for efficient reading
 
-## Latest Changes (0.1.7)
+## Latest Changes (0.1.8)
 
-- **Full Windows support**: IPC uses Named Pipe instead of Unix socket (fixes `EACCES` error)
-- **Chinese character encoding**: Automatic GBK decoding on Windows (no more garbled text)
-- **Reliable command execution**: Uses `child_process.exec()` instead of Shell Integration API
-- Added `README.zh-CN.md` (中文说明文档)
+- **Renamed to bashterm-mcp**: All references updated from vscode-terminal-mcp
+- **Fixed bin path**: Corrected the npm binary entry point
+- **Dynamic version icon**: badges now reflect the actual version
+- Updated Chinese README with version badges
 
 ### Previous (0.1.6)
 

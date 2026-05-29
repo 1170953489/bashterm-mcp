@@ -1,6 +1,6 @@
 # bashterm-mcp
 
-[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp)](https://www.npmjs.com/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/bashterm-mcp/releases)
+[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp)](https://www.npmjs.com/package/bashterm-mcp) [![VSIX](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?label=vsix&color=blue)](https://github.com/1170953489/bashterm-mcp/releases)
 
 在 **VSCode 可见的终端标签页**中执行命令的 MCP 服务器，支持完整输出捕获。与内联执行不同，每个命令都在真正的终端中运行，你可以看到、滚动并与之交互。
 
@@ -31,11 +31,11 @@ claude mcp add BashTerm -- npx bashterm-mcp@latest
 
 ```bash
 # 下载 .vsix 安装包
-# 从 Release 页面下载 bashterm-mcp-0.1.7.vsix
-code --install-extension bashterm-mcp-0.1.7.vsix
+# 从 Release 页面下载 bashterm-mcp-0.1.8.vsix
+code --install-extension bashterm-mcp-0.1.8.vsix
 
 # 添加 MCP 服务器（使用本地扩展内置的 mcp-entry）
-claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.bashterm-mcp-0.1.7\dist\mcp-entry.js"
+claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.bashterm-mcp-0.1.8\dist\mcp-entry.js"
 ```
 
 ### VS Code / Copilot
@@ -222,11 +222,12 @@ BashTerm 在可见的 VSCode 终端标签页中运行命令，用户可以实时
 3. 命令通过 `child_process.exec()` 执行，输出直接捕获，不再依赖 Shell Integration API
 4. 输出存储在循环缓冲区中，支持分页高效读取
 
-## 最新更新 (0.1.7)
+## 最新更新 (0.1.8)
 
-- **Windows 平台完整支持**：IPC 改用 Windows Named Pipe，修复 `EACCES` 错误
-- **中文不乱码**：Windows 下自动使用 GBK 解码输出
-- **命令执行更可靠**：改用 `child_process.exec()` 直接执行命令，绕过 Shell Integration API 依赖
+- **项目改名 bashterm-mcp**：全面清理旧名称 vscode-terminal-mcp 引用
+- **修复 bin 路径**：更正 npm 二进制入口路径
+- **动态版本图标**：badge 徽章现在反映实际版本号
+- 中文 README 补充版本徽章
 
 详见 [CHANGELOG.md](CHANGELOG.md) 查看完整历史。
 
