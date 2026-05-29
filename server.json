@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.sirlordt/vscode-terminal-mcp",
+  "name": "io.github.hcdb/bashterm-mcp",
   "version": "0.1.1",
   "description": "Execute commands in visible VSCode terminal tabs with output capture and session reuse.",
-  "author": "sirlordt",
+  "author": "hcdb",
   "license": "MIT",
-  "homepage": "https://github.com/sirlordt/vscode-terminal-mcp",
+  "homepage": "https://github.com/hcdb/bashterm-mcp",
   "repository": {
     "source": "github",
-    "url": "https://github.com/sirlordt/vscode-terminal-mcp"
+    "url": "https://github.com/hcdb/bashterm-mcp"
   },
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "vscode-terminal-mcp",
+      "identifier": "bashterm-mcp",
       "version": "0.1.1",
       "transport": {
         "type": "stdio"

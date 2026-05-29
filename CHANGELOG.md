@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.5] - 2026-03-18 14:50 PDT
 
 ### Added
-- npm publish with `bin` entry for `npx vscode-terminal-mcp` support
+- npm publish with `bin` entry for `npx bashterm-mcp` support
 - Published to VSCode Marketplace and MCP Registry
 
 ## [0.1.3] - 2026-03-18 11:00 PDT

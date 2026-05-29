@@ -20,10 +20,10 @@ function getSocketPath(): string {
   const hash = crypto.createHash("md5").update(workspace).digest("hex").slice(0, 8);
   const isWin = process.platform === "win32";
   const socketPath = isWin
-    ? path.join("\\\\?\\pipe", `vscode-terminal-mcp-${hash}`)
-    : path.join(tmpDir, `vscode-terminal-mcp-${hash}.sock`);
+    ? path.join("\\\\?\\pipe", `bashterm-mcp-${hash}`)
+    : path.join(tmpDir, `bashterm-mcp-${hash}.sock`);
   // Write the socket path to a well-known discovery file so mcp-entry.ts can find it
-  const discoveryPath = path.join(tmpDir, "vscode-terminal-mcp.discovery");
+  const discoveryPath = path.join(tmpDir, "bashterm-mcp.discovery");
   try {
     fs.writeFileSync(discoveryPath, socketPath);
   } catch {

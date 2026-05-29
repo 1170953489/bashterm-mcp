@@ -103,7 +103,7 @@ export function createMcpRequestHandler(
           tools: {},
         },
         serverInfo: {
-          name: "vscode-terminal-mcp",
+          name: "bashterm-mcp",
           version: "0.1.0",
         },
       };

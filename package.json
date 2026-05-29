@@ -23,7 +23,7 @@
     "model-context-protocol",
     "ai-tools"
   ],
-  "mcpName": "io.github.sirlordt/vscode-terminal-mcp",
+  "mcpName": "io.github.hcdb/bashterm-mcp",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.99.0"
@@ -36,11 +36,11 @@
   ],
   "main": "./dist/extension.js",
   "bin": {
-    "vscode-terminal-mcp": "./dist/mcp-entry.js"
+    "bashterm-mcp": "./dist/mcp-entry.js"
   },
   "contributes": {
     "mcpServers": {
-      "vscode-terminal-mcp": {
+      "bashterm-mcp": {
         "type": "stdio",
         "command": "node",
         "args": [

@@ -1,4 +1,4 @@
-# Project: vscode-terminal-mcp
+# Project: bashterm-mcp
 
 MCP server that runs commands in visible VSCode terminal tabs.
 
@@ -44,12 +44,12 @@ npm publish --access public
 npx vsce package --allow-missing-repository
 
 # Install locally for testing
-cp dist/extension.js dist/mcp-entry.js ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-<version>/dist/
+cp dist/extension.js dist/mcp-entry.js ~/.vscode/extensions/hcdb.bashterm-mcp-<version>/dist/
 ```
 
 ### 5. Upload to VSCode Marketplace
 
-1. Go to https://marketplace.visualstudio.com/manage/publishers/sirlordt
+1. Go to https://marketplace.visualstudio.com/manage/publishers/hcdb
 2. Click "..." next to Terminal MCP → "Update"
 3. Upload the `.vsix` file
 
@@ -68,7 +68,7 @@ VSCode aggressively caches extensions. When developing locally:
 ```bash
 # Quick update (after modifying source)
 npm run build
-cp dist/extension.js ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-<version>/dist/extension.js
+cp dist/extension.js ~/.vscode/extensions/hcdb.bashterm-mcp-<version>/dist/extension.js
 # Then "Developer: Reload Window"
 
 # If reload doesn't pick up changes, close and reopen VSCode completely

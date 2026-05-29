@@ -1,4 +1,4 @@
-# vscode-terminal-mcp
+# bashterm-mcp
 
 [![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?include_prereleases)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/bashterm-mcp/releases)
 
@@ -227,9 +227,9 @@ VSCode aggressively caches extensions in memory. When developing locally, `code 
 After modifying source files, build and copy directly into the installed extension directory:
 
 ```bash
-cd /path/to/vscode-terminal-mcp
+cd /path/to/bashterm-mcp
 npm run build
-cp dist/extension.js ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-<version>/dist/extension.js
+cp dist/extension.js ~/.vscode/extensions/hcdb.bashterm-mcp-<version>/dist/extension.js
 ```
 
 Then run **"Developer: Reload Window"** (`Ctrl+Shift+P`).
@@ -240,19 +240,19 @@ If VSCode still uses old code:
 
 ```bash
 # 1. Uninstall and remove all copies
-code --uninstall-extension sirlordt.vscode-terminal-mcp
-rm -rf ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-*
+code --uninstall-extension hcdb.bashterm-mcp
+rm -rf ~/.vscode/extensions/hcdb.bashterm-mcp-*
 
 # 2. Check for ghost entries with old publisher names
 # Look in ~/.vscode/extensions/extensions.json for stale entries
-# Remove any entries with old publisher IDs (e.g., "terminal-mcp.vscode-terminal-mcp")
+# Remove any entries with old publisher IDs (e.g., "terminal-mcp.bashterm-mcp")
 
 # 3. Close VSCode completely (not just reload)
 
 # 4. Rebuild and install
 npm run build
 npx vsce package --allow-missing-repository
-code --install-extension vscode-terminal-mcp-<version>.vsix --force
+code --install-extension bashterm-mcp-<version>.vsix --force
 
 # 5. Open VSCode
 ```
@@ -264,10 +264,10 @@ code --install-extension vscode-terminal-mcp-<version>.vsix --force
 ls ~/.vscode/extensions/ | grep terminal
 
 # Verify your changes are in the installed extension
-grep "YOUR_UNIQUE_STRING" ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-*/dist/extension.js
+grep "YOUR_UNIQUE_STRING" ~/.vscode/extensions/hcdb.bashterm-mcp-*/dist/extension.js
 
 # Compare checksums
-md5sum dist/extension.js ~/.vscode/extensions/sirlordt.vscode-terminal-mcp-*/dist/extension.js
+md5sum dist/extension.js ~/.vscode/extensions/hcdb.bashterm-mcp-*/dist/extension.js
 ```
 
 ## Large Output Handling

@@ -17,7 +17,7 @@ import * as fs from "fs";
 function getSocketPath(): string {
   const tmpDir = os.tmpdir();
   // Read the discovery file written by the extension to find the correct socket
-  const discoveryPath = path.join(tmpDir, "vscode-terminal-mcp.discovery");
+  const discoveryPath = path.join(tmpDir, "bashterm-mcp.discovery");
   try {
     const socketPath = fs.readFileSync(discoveryPath, "utf8").trim();
     if (socketPath && (process.platform === "win32" || fs.existsSync(socketPath))) {
@@ -29,8 +29,8 @@ function getSocketPath(): string {
   // Fallback to platform-appropriate path
   const isWin = process.platform === "win32";
   return isWin
-    ? path.join("\\\\?\\pipe", "vscode-terminal-mcp-default")
-    : path.join(tmpDir, "vscode-terminal-mcp.sock");
+    ? path.join("\\\\?\\pipe", "bashterm-mcp-default")
+    : path.join(tmpDir, "bashterm-mcp.sock");
 }
 
 const SOCKET_PATH = getSocketPath();

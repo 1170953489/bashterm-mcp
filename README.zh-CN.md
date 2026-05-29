@@ -1,4 +1,4 @@
-# vscode-terminal-mcp
+# bashterm-mcp
 
 [![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?include_prereleases)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/bashterm-mcp/releases)
 
@@ -31,11 +31,11 @@ claude mcp add BashTerm -- npx bashterm-mcp@latest
 
 ```bash
 # 下载 .vsix 安装包
-# 从 Release 页面下载 vscode-terminal-mcp-0.1.7.vsix
-code --install-extension vscode-terminal-mcp-0.1.7.vsix
+# 从 Release 页面下载 bashterm-mcp-0.1.7.vsix
+code --install-extension bashterm-mcp-0.1.7.vsix
 
 # 添加 MCP 服务器（使用本地扩展内置的 mcp-entry）
-claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.vscode-terminal-mcp-0.1.7\dist\mcp-entry.js"
+claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.bashterm-mcp-0.1.7\dist\mcp-entry.js"
 ```
 
 ### VS Code / Copilot
