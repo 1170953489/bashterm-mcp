@@ -1,6 +1,6 @@
 # vscode-terminal-mcp
 
-[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/vscode-terminal-mcp?include_prereleases)](https://github.com/1170953489/vscode-terminal-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/vscode-terminal-mcp/releases)
+[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?include_prereleases)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/bashterm-mcp/releases)
 
 在 **VSCode 可见的终端标签页**中执行命令的 MCP 服务器，支持完整输出捕获。与内联执行不同，每个命令都在真正的终端中运行，你可以看到、滚动并与之交互。
 

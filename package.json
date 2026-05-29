@@ -8,11 +8,11 @@
   "author": "hcdb",
   "repository": {
     "type": "git",
-    "url": "https://github.com/1170953489/vscode-terminal-mcp.git"
+    "url": "https://github.com/1170953489/bashterm-mcp.git"
   },
-  "homepage": "https://github.com/1170953489/vscode-terminal-mcp#readme",
+  "homepage": "https://github.com/1170953489/bashterm-mcp#readme",
   "bugs": {
-    "url": "https://github.com/1170953489/vscode-terminal-mcp/issues"
+    "url": "https://github.com/1170953489/bashterm-mcp/issues"
   },
   "keywords": [
     "mcp",
