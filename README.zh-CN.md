@@ -1,6 +1,6 @@
 # vscode-terminal-mcp
 
-[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/vscode-terminal-mcp?include_prereleases)](https://github.com/1170953489/vscode-terminal-mcp/releases) [![npm version](https://img.shields.io/npm/v/vscode-terminal-mcp.svg)](https://npmjs.org/package/vscode-terminal-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/vscode-terminal-mcp/releases)
+[![English](https://img.shields.io/badge/README-English-blue)](README.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/vscode-terminal-mcp?include_prereleases)](https://github.com/1170953489/vscode-terminal-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/vscode-terminal-mcp/releases)
 
 在 **VSCode 可见的终端标签页**中执行命令的 MCP 服务器，支持完整输出捕获。与内联执行不同，每个命令都在真正的终端中运行，你可以看到、滚动并与之交互。
 
@@ -24,7 +24,7 @@
 ### Claude Code
 
 ```bash
-claude mcp add BashTerm -- npx vscode-terminal-mcp@latest
+claude mcp add BashTerm -- npx bashterm-mcp@latest
 ```
 
 或使用本 fork 的 Windows 优化版本：
@@ -48,7 +48,7 @@ claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.vs
     "BashTerm": {
       "type": "stdio",
       "command": "npx",
-      "args": ["vscode-terminal-mcp@latest"]
+      "args": ["bashterm-mcp@latest"]
     }
   }
 }
@@ -64,7 +64,7 @@ claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.vs
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "vscode-terminal-mcp@latest"]
+      "args": ["-y", "bashterm-mcp@latest"]
     }
   }
 }
@@ -82,7 +82,7 @@ claude mcp add BashTerm -- node "C:\Users\<用户名>\.vscode\extensions\hcdb.vs
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "vscode-terminal-mcp@latest"]
+      "args": ["-y", "bashterm-mcp@latest"]
     }
   }
 }

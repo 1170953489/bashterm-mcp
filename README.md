@@ -1,6 +1,6 @@
 # vscode-terminal-mcp
 
-[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/vscode-terminal-mcp?include_prereleases)](https://github.com/1170953489/vscode-terminal-mcp/releases) [![npm version](https://img.shields.io/npm/v/vscode-terminal-mcp.svg)](https://npmjs.org/package/vscode-terminal-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/vscode-terminal-mcp/releases)
+[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/vscode-terminal-mcp?include_prereleases)](https://github.com/1170953489/vscode-terminal-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp.svg)](https://npmjs.org/package/bashterm-mcp) [![VSIX](https://img.shields.io/badge/vsix-v0.1.7-blue)](https://github.com/1170953489/vscode-terminal-mcp/releases)
 
 MCP server that executes commands in **visible VSCode terminal tabs** with full output capture. Unlike inline execution, every command runs in a real terminal you can see, scroll, and interact with.
 
@@ -23,7 +23,7 @@ MCP server that executes commands in **visible VSCode terminal tabs** with full 
 ### Claude Code
 
 ```bash
-claude mcp add BashTerm -- npx vscode-terminal-mcp@latest
+claude mcp add BashTerm -- npx bashterm-mcp@latest
 ```
 
 ### VS Code / Copilot
@@ -36,7 +36,7 @@ Add to your `.vscode/mcp.json`:
     "BashTerm": {
       "type": "stdio",
       "command": "npx",
-      "args": ["vscode-terminal-mcp@latest"]
+      "args": ["bashterm-mcp@latest"]
     }
   }
 }
@@ -52,7 +52,7 @@ Add to your `.cursor/mcp.json`:
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "vscode-terminal-mcp@latest"]
+      "args": ["-y", "bashterm-mcp@latest"]
     }
   }
 }
@@ -70,7 +70,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "vscode-terminal-mcp@latest"]
+      "args": ["-y", "bashterm-mcp@latest"]
     }
   }
 }

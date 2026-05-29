@@ -1,5 +1,5 @@
 {
-  "name": "vscode-terminal-mcp",
+  "name": "bashterm-mcp",
   "displayName": "Terminal MCP Server (Windows Compatible)",
   "description": "MCP server that provides visible terminal sessions in VSCode. Supports Windows, macOS and Linux.",
   "version": "0.1.7",
