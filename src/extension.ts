@@ -18,7 +18,10 @@ function getSocketPath(): string {
   const crypto = require("crypto");
   const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
   const hash = crypto.createHash("md5").update(workspace).digest("hex").slice(0, 8);
-  const socketPath = path.join(tmpDir, `vscode-terminal-mcp-${hash}.sock`);
+  const isWin = process.platform === "win32";
+  const socketPath = isWin
+    ? path.join("\\\\?\\pipe", `vscode-terminal-mcp-${hash}`)
+    : path.join(tmpDir, `vscode-terminal-mcp-${hash}.sock`);
   // Write the socket path to a well-known discovery file so mcp-entry.ts can find it
   const discoveryPath = path.join(tmpDir, "vscode-terminal-mcp.discovery");
   try {
@@ -30,6 +33,7 @@ function getSocketPath(): string {
 }
 
 function cleanupSocket(socketPath: string): void {
+  if (process.platform === "win32") return;
   try {
     if (fs.existsSync(socketPath)) {
       fs.unlinkSync(socketPath);

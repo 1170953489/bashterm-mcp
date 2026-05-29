@@ -20,14 +20,17 @@ function getSocketPath(): string {
   const discoveryPath = path.join(tmpDir, "vscode-terminal-mcp.discovery");
   try {
     const socketPath = fs.readFileSync(discoveryPath, "utf8").trim();
-    if (socketPath && fs.existsSync(socketPath)) {
+    if (socketPath && (process.platform === "win32" || fs.existsSync(socketPath))) {
       return socketPath;
     }
   } catch {
     // Fall through to default
   }
-  // Fallback to legacy path
-  return path.join(tmpDir, "vscode-terminal-mcp.sock");
+  // Fallback to platform-appropriate path
+  const isWin = process.platform === "win32";
+  return isWin
+    ? path.join("\\\\?\\pipe", "vscode-terminal-mcp-default")
+    : path.join(tmpDir, "vscode-terminal-mcp.sock");
 }
 
 const SOCKET_PATH = getSocketPath();

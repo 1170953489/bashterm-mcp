@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as cp from "child_process";
+import { TextDecoder } from "util";
 import type {
   TerminalSessionConfig,
   TerminalSessionInfo,
@@ -39,10 +41,11 @@ export class TerminalSession {
     this.createdAt = Date.now();
     this.outputBuffer = createOutputBuffer(maxOutputLines);
 
-    const terminalOptions: vscode.TerminalOptions = {
+    const terminalOptions: vscode.TerminalOptions & { shellIntegration?: { enabled: boolean } } = {
       name: `MCP: ${config.name}`,
       cwd: this.cwd,
       env: config.env,
+      shellIntegration: { enabled: true },
     };
 
     if (config.shell) {
@@ -50,12 +53,8 @@ export class TerminalSession {
     }
 
     this.terminal = vscode.window.createTerminal(terminalOptions);
-    this.terminal.show(true);
-
-    // Wait 2 seconds for shell to fully initialize
-    this.shellReady = new Promise<void>((resolve) => {
-      resolve();
-    });
+    this.terminal.show(false);
+    this.shellReady = Promise.resolve();
 
     this.setupShellIntegrationCapture();
 
@@ -118,9 +117,7 @@ export class TerminalSession {
     timedOut: boolean;
     durationMs: number;
   }> {
-    log(`Waiting for shell ready in session ${this.sessionId}...`);
-    await this.shellReady;
-    log(`Shell ready, executing command in session ${this.sessionId}`);
+    log(`Executing command in session ${this.sessionId}: ${command.slice(0, 80)}`);
 
     const commandId = generateCommandId();
     const startedAt = Date.now();
@@ -136,6 +133,8 @@ export class TerminalSession {
 
     const outputStartIndex = this.outputBuffer.lines.length;
 
+    // Show command in visible terminal for user viewing
+    this.terminal.show(true);
     this.terminal.sendText(command, true);
 
     if (!waitForCompletion) {
@@ -150,10 +149,58 @@ export class TerminalSession {
 
     return new Promise((resolve) => {
       let resolved = false;
+      const isWin = process.platform === "win32";
+      const options: cp.ExecOptions = {
+        cwd: this.cwd,
+        timeout: timeoutMs,
+        windowsHide: true,
+        encoding: isWin ? null : "utf8",
+      };
+
+      const child = cp.exec(command, options, (error, stdout, stderr) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutHandle);
+
+        let outStr: string;
+        let errStr: string;
+        if (isWin) {
+          const td = new TextDecoder("gbk");
+          outStr = stdout ? td.decode(stdout as Buffer) : "";
+          errStr = stderr ? td.decode(stderr as Buffer) : "";
+        } else {
+          outStr = stdout as string;
+          errStr = (stderr as string) || "";
+        }
+
+        const output = (outStr + (errStr ? "\n" + errStr : "")).trim();
+        const lines = output.split("\n");
+        for (const line of lines) {
+          appendToBuffer(this.outputBuffer, line + "\r\n");
+        }
+
+        if (this.currentCommand) {
+          this.currentCommand.completedAt = Date.now();
+          this.currentCommand.exitCode = error ? (error.code || 1) : 0;
+          this.currentCommand.timedOut = !!(error && error.killed);
+          this.currentCommand.outputEndLine = this.outputBuffer.lines.length;
+          this.commandHistory.push(this.currentCommand);
+          this.currentCommand = null;
+        }
+
+        resolve({
+          commandId,
+          output,
+          exitCode: error ? (error.code || 1) : 0,
+          timedOut: !!(error && error.killed),
+          durationMs: Date.now() - startedAt,
+        });
+      });
 
       const timeoutHandle = setTimeout(() => {
         if (resolved) return;
         resolved = true;
+        child.kill();
 
         if (this.currentCommand) {
           this.currentCommand.timedOut = true;
@@ -175,58 +222,6 @@ export class TerminalSession {
           durationMs: Date.now() - startedAt,
         });
       }, timeoutMs);
-
-      if (vscode.window.onDidEndTerminalShellExecution) {
-        const disposable = vscode.window.onDidEndTerminalShellExecution(
-          (event) => {
-            if (event.terminal !== this.terminal || resolved) return;
-
-            resolved = true;
-            clearTimeout(timeoutHandle);
-            disposable.dispose();
-
-            const output = this.outputBuffer.lines
-              .slice(outputStartIndex)
-              .join("\n");
-
-            resolve({
-              commandId,
-              output,
-              exitCode: event.exitCode ?? null,
-              timedOut: false,
-              durationMs: Date.now() - startedAt,
-            });
-          },
-        );
-      } else {
-        const pollInterval = setInterval(() => {
-          if (resolved) {
-            clearInterval(pollInterval);
-            return;
-          }
-          const currentLines = this.outputBuffer.lines.length;
-          setTimeout(() => {
-            if (resolved) return;
-            if (this.outputBuffer.lines.length === currentLines) {
-              resolved = true;
-              clearTimeout(timeoutHandle);
-              clearInterval(pollInterval);
-
-              const output = this.outputBuffer.lines
-                .slice(outputStartIndex)
-                .join("\n");
-
-              resolve({
-                commandId,
-                output,
-                exitCode: null,
-                timedOut: false,
-                durationMs: Date.now() - startedAt,
-              });
-            }
-          }, 2000);
-        }, 1000);
-      }
     });
   }
 
