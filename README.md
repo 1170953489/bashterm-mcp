@@ -11,9 +11,11 @@ MCP server that executes commands in **visible VSCode terminal tabs** with full 
 - **Long-Running Support**: Fire-and-forget execution with `waitForCompletion: false`, then poll output incrementally with `read`.
 - **Subagent Isolation**: Tag sessions with `agentId` to keep parallel agent workloads separated.
 
+> **Windows Compatible** — This fork fully supports Windows, including Chinese output without garbled text.
+
 ## Requirements
 
-- VS Code 1.93+ (for Shell Integration API)
+- VS Code 1.93+
 - Node.js 20+
 
 ## Getting Started
@@ -288,12 +290,19 @@ This commonly happens with commands that produce heavy TUI output (progress bars
 
 ## How It Works
 
-1. The **VSCode extension** activates and starts an IPC server on a Unix socket
+1. The **VSCode extension** activates and starts an IPC server (Named Pipe on Windows, Unix socket on macOS/Linux)
 2. The **MCP entry point** (`mcp-entry.js`) is spawned by the MCP client and bridges JSON-RPC stdio with the IPC socket
-3. Commands execute in real VSCode terminals using the **Shell Integration API** for reliable output capture and exit code detection
+3. Commands execute via `child_process.exec()` for reliable cross-platform output capture and exit code detection
 4. Output is stored in circular buffers with pagination support for efficient reading
 
-## Latest Changes (0.1.6)
+## Latest Changes (0.1.7)
+
+- **Full Windows support**: IPC uses Named Pipe instead of Unix socket (fixes `EACCES` error)
+- **Chinese character encoding**: Automatic GBK decoding on Windows (no more garbled text)
+- **Reliable command execution**: Uses `child_process.exec()` instead of Shell Integration API
+- Added `README.zh-CN.md` (中文说明文档)
+
+### Previous (0.1.6)
 
 - Screenshots in README for marketplace
 - Clean output format for all tools — no more raw JSON
