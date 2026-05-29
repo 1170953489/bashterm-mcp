@@ -2,13 +2,13 @@
   "name": "bashterm-mcp",
   "displayName": "Terminal MCP Server (Windows Compatible)",
   "description": "MCP server that provides visible terminal sessions in VSCode. Supports Windows, macOS and Linux.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "hcdb",
   "license": "MIT",
   "author": "hcdb",
   "repository": {
     "type": "git",
-    "url": "https://github.com/1170953489/bashterm-mcp.git"
+    "url": "git+https://github.com/1170953489/bashterm-mcp.git"
   },
   "homepage": "https://github.com/1170953489/bashterm-mcp#readme",
   "bugs": {
@@ -36,7 +36,7 @@
   ],
   "main": "./dist/extension.js",
   "bin": {
-    "bashterm-mcp": "./dist/mcp-entry.js"
+    "bashterm-mcp": "dist/mcp-entry.js"
   },
   "contributes": {
     "mcpServers": {
