@@ -19,6 +19,7 @@ import {
   buildCmdCaptureCommand,
   createCmdCaptureFiles,
   readCaptureFile,
+  writeCmdScript,
   type CmdCaptureFiles,
 } from "../utils/cmd-capture.js";
 
@@ -368,8 +369,9 @@ export class TerminalSession {
     this.currentCommand = commandExecution;
 
     const files = createCmdCaptureFiles();
+    writeCmdScript(files.commandPath, command);
     const wrappedCommand = buildCmdCaptureCommand(
-      command,
+      files.commandPath,
       files.stdoutPath,
       files.stderrPath,
       files.exitCodePath,
@@ -391,8 +393,8 @@ export class TerminalSession {
       clearTimeout(timeoutHandle);
     }
 
-    const stdout = readCaptureFile(files.stdoutPath, this.shell);
-    const stderr = readCaptureFile(files.stderrPath, this.shell);
+    const stdout = readCaptureFile(files.stdoutPath);
+    const stderr = readCaptureFile(files.stderrPath);
     const output = (stdout + (stderr ? "\n" + stderr : "")).trim();
 
     if (timedOut) {
@@ -406,7 +408,7 @@ export class TerminalSession {
       };
     }
 
-    const exitCodeText = readCaptureFile(files.exitCodePath, this.shell).trim();
+    const exitCodeText = readCaptureFile(files.exitCodePath).trim();
     const exitCode = timedOut ? null : Number.parseInt(exitCodeText, 10);
     const normalizedExitCode = Number.isFinite(exitCode) ? exitCode : null;
 
@@ -433,10 +435,10 @@ export class TerminalSession {
     await waitForFile(files.exitCodePath, () => !this.isActive);
     if (!this.isActive || !fs.existsSync(files.exitCodePath)) return;
 
-    const stdout = readCaptureFile(files.stdoutPath, this.shell);
-    const stderr = readCaptureFile(files.stderrPath, this.shell);
+    const stdout = readCaptureFile(files.stdoutPath);
+    const stderr = readCaptureFile(files.stderrPath);
     const output = (stdout + (stderr ? "\n" + stderr : "")).trim();
-    const exitCodeText = readCaptureFile(files.exitCodePath, this.shell).trim();
+    const exitCodeText = readCaptureFile(files.exitCodePath).trim();
     const exitCode = Number.parseInt(exitCodeText, 10);
     const normalizedExitCode = Number.isFinite(exitCode) ? exitCode : null;
 
