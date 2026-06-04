@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2026-06-04
+
+### Changed
+- CLAUDE.md 新增 Commit Message Style 规则，规范提交说明格式
+- CLAUDE.md 新增版本号递增规则（semver）
+- CLAUDE.md 删除无实际作用的项目标题和简介
+
 ## [0.2.2] - 2026-06-04
 
 ### Added
