@@ -61,7 +61,7 @@
         "bashterm-mcp-server.autoConfigureClaudeCode": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically configure Claude Code to block the built-in Bash tool and prefer BashTerm MCP tools"
+          "description": "Automatically configure Claude Code to keep simple built-in Bash commands allowed while redirecting complex Bash commands to BashTerm MCP tools"
         },
         "bashterm-mcp-server.blockedCommands": {
           "type": "array",
