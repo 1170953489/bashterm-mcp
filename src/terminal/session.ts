@@ -15,6 +15,7 @@ import {
 } from "./output-capture.js";
 import { generateSessionId, generateCommandId } from "../utils/id-generator.js";
 import { log, logError } from "../utils/logger.js";
+import { buildExecOptions, detectShellEncoding } from "../utils/exec-options.js";
 
 export class TerminalSession {
   readonly sessionId: string;
@@ -172,12 +173,12 @@ export class TerminalSession {
     return new Promise((resolve) => {
       let resolved = false;
       const isWin = process.platform === "win32";
-      const options: cp.ExecOptions = {
+      const options = buildExecOptions({
         cwd: this.cwd,
-        timeout: timeoutMs,
-        windowsHide: true,
-        encoding: isWin ? null : "utf8",
-      };
+        timeoutMs,
+        shell: this.shell,
+        isWin,
+      });
 
       const child = cp.exec(command, options, (error, stdout, stderr) => {
         if (resolved) return;
@@ -187,7 +188,8 @@ export class TerminalSession {
         let outStr: string;
         let errStr: string;
         if (isWin) {
-          const td = new TextDecoder("gbk");
+          const textEncoding = detectShellEncoding(isWin, this.shell);
+          const td = new TextDecoder(textEncoding);
           outStr = stdout ? td.decode(stdout as Buffer) : "";
           errStr = stderr ? td.decode(stderr as Buffer) : "";
         } else {
