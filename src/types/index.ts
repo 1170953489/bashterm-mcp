@@ -12,6 +12,8 @@ export interface TerminalSessionInfo {
   sessionId: string;
   name: string;
   cwd: string;
+  env?: Record<string, string>;
+  shell?: string;
   agentId?: string;
   isActive: boolean;
   createdAt: number;
@@ -103,6 +105,14 @@ export interface SecurityConfig {
   maxConcurrentSessions: number;
   maxOutputLines: number;
   idleTimeoutMs: number;
+}
+
+/**
+ * Result of a security validation check.
+ */
+export interface ValidationResult {
+  valid: boolean;
+  reason?: string;
 }
 
 // --- MCP Response Helpers ---

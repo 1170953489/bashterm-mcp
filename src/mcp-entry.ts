@@ -195,8 +195,12 @@ class StdioToIpcBridge {
   }
 
   private handleJsonRpcRequest(message: JsonRpcMessage): void {
+    // JSON-RPC notifications have no id field and expect no response.
+    // Forward them without tracking in pendingRequests to avoid leaks.
+    const isNotification = message.id === undefined || message.id === null;
+
     if (!this.connected || !this.socket) {
-      if (message.id !== undefined) {
+      if (!isNotification) {
         const errorResponse: JsonRpcMessage = {
           jsonrpc: "2.0",
           id: message.id,
@@ -212,12 +216,12 @@ class StdioToIpcBridge {
 
     // Forward to extension host via IPC
     const ipcRequest = {
-      id: String(message.id ?? `notif-${Date.now()}`),
+      id: String(message.id ?? ""),
       method: message.method,
       params: message.params,
     };
 
-    if (message.id !== undefined) {
+    if (!isNotification) {
       this.pendingRequests.set(ipcRequest.id, {
         resolve: () => {},
         reject: (err) => {

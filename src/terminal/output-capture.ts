@@ -14,22 +14,36 @@ export function createOutputBuffer(maxLines?: number): OutputBuffer {
 /**
  * Append raw text to the output buffer.
  * Splits by newlines and maintains circular buffer semantics.
+ *
+ * Uses batch eviction: when many new lines arrive at once (common when
+ * capturing multi-line command output), all overflowed lines are removed
+ * with a single splice() instead of one shift() per line.  This avoids
+ * O(n × m) performance on large buffers.
  */
 export function appendToBuffer(buffer: OutputBuffer, data: string): void {
-  const newLines = data.split("\n");
+  let newLines = data.split("\n");
+  const receivedCount = newLines.length;
 
-  for (const line of newLines) {
-    if (buffer.lines.length >= buffer.maxLines) {
-      // Circular: shift oldest line out
-      buffer.lines.shift();
-      // Adjust lastReadIndex if it was pointing to removed lines
-      if (buffer.lastReadIndex > 0) {
-        buffer.lastReadIndex--;
-      }
-    }
-    buffer.lines.push(line);
-    buffer.totalLinesReceived++;
+  // If the incoming batch alone exceeds the buffer capacity, keep only
+  // the tail of the batch and discard all pre-existing lines.
+  if (newLines.length > buffer.maxLines) {
+    const drop = newLines.length - buffer.maxLines;
+    newLines = newLines.slice(drop);
+    buffer.lines.length = 0;
+    buffer.lastReadIndex = 0;
   }
+
+  // Evict oldest lines if existing + new would overflow
+  const totalAfterAppend = buffer.lines.length + newLines.length;
+  if (totalAfterAppend > buffer.maxLines) {
+    const overflow = totalAfterAppend - buffer.maxLines;
+    buffer.lines.splice(0, overflow);
+    // Adjust lastReadIndex for evicted lines, clamped to 0
+    buffer.lastReadIndex = Math.max(0, buffer.lastReadIndex - overflow);
+  }
+
+  buffer.lines.push(...newLines);
+  buffer.totalLinesReceived += receivedCount;
 }
 
 /**

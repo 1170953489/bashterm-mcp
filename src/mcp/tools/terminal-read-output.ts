@@ -1,6 +1,7 @@
 import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse } from "../../types/index.js";
 import { terminalReadOutputSchema } from "./schemas.js";
+import { cleanOutput } from "../../utils/ansi.js";
 
 export async function handleTerminalReadOutput(
   params: unknown,
@@ -23,13 +24,7 @@ export async function handleTerminalReadOutput(
 
   const result = session.readOutput(input.offset, input.lines);
 
-  const cleanOutput = result.lines
-    .join("\n")
-    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
-    .replace(/\x1b\][^\x07]*\x07/g, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "")
-    .trim();
+  const clean = cleanOutput(result.lines.join("\n"));
 
   const status = [
     `lines: ${result.readFrom}-${result.readFrom + result.readCount}/${result.totalLines}`,
@@ -37,7 +32,7 @@ export async function handleTerminalReadOutput(
     input.sessionId,
   ];
 
-  const text = `${cleanOutput}\n\n[${status.join(" | ")}]`;
+  const text = `${clean}\n\n[${status.join(" | ")}]`;
 
   return {
     content: [

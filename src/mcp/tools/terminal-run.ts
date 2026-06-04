@@ -1,6 +1,7 @@
 import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse } from "../../types/index.js";
 import { terminalRunSchema } from "./schemas.js";
+import { formatExecuteResult } from "./command-utils.js";
 
 export async function handleTerminalRun(
   params: unknown,
@@ -8,12 +9,18 @@ export async function handleTerminalRun(
 ): Promise<McpToolResponse> {
   const input = terminalRunSchema.parse(params);
 
-  // Try to reuse an existing session matching cwd and agentId that is not busy
+  // Try to reuse an existing session matching cwd, agentId, env, and shell
   let sessionId: string | undefined;
   let isNewSession = false;
   const existing = sessionManager.listSessions(input.agentId);
   for (const s of existing) {
-    if (!s.isActive || (input.cwd && s.cwd !== input.cwd)) continue;
+    if (!s.isActive) continue;
+    if (input.cwd && s.cwd !== input.cwd) continue;
+    // Only reuse if the existing session was created with the same shell override
+    if (input.shell && s.shell !== input.shell) continue;
+    if (!input.shell && s.shell) continue; // session has custom shell but request doesn't
+    // Only reuse if env configuration matches (request without env can reuse any)
+    if (input.env && !envsEqual(input.env, s.env)) continue;
     const session = sessionManager.getSession(s.sessionId);
     if (session && !session.isBusy) {
       sessionId = s.sessionId;
@@ -39,12 +46,17 @@ export async function handleTerminalRun(
   }
 
   if (isNewSession) {
-    return new Promise<McpToolResponse>((resolve) => {
-      setTimeout(async () => {
-        const result = await executeCommand(sessionId!, input, sessionManager);
-        resolve(result);
-      }, 500);
-    });
+    const session = sessionManager.getSession(sessionId);
+    if (!session) {
+      return {
+        content: [{ type: "text", text: "Error: Failed to get terminal session." }],
+        isError: true,
+      };
+    }
+    // Wait for the shell to be ready before sending the first command.
+    // Shell integration fires early; otherwise falls back to a 2-second timeout.
+    await session.whenReady();
+    return executeCommand(sessionId, input, sessionManager);
   }
 
   return executeCommand(sessionId, input, sessionManager);
@@ -76,28 +88,25 @@ async function executeCommand(
 
   const result = await session.execute(input.command, timeoutMs, waitForCompletion);
 
-  let cleanOutput = result.output
-    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
-    .replace(/\x1b\][^\x07]*\x07/g, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "")
-    .trim();
+  return formatExecuteResult(
+    result.output,
+    input.command,
+    result.exitCode,
+    result.timedOut,
+    result.durationMs,
+    sessionId,
+    timeoutMs,
+  );
+}
 
-  const lines = cleanOutput.split("\n");
-  if (lines.length > 0 && lines[0].trim() === input.command.trim()) {
-    lines.shift();
-    cleanOutput = lines.join("\n").trim();
-  }
-
-  const statusParts = [`exit: ${result.exitCode ?? "n/a"}`, `${result.durationMs}ms`, sessionId];
-  let text = `$ ${input.command}\n${cleanOutput}\n\n[${statusParts.join(" | ")}]`;
-
-  if (result.timedOut) {
-    text += `\n[TIMED OUT after ${timeoutMs}ms - session still active, use read to get more output]`;
-  }
-
-  return {
-    content: [{ type: "text", text }],
-    isError: result.exitCode !== null && result.exitCode !== 0,
-  };
+/** Shallow comparison of two env record objects. */
+function envsEqual(
+  a: Record<string, string>,
+  b: Record<string, string> | undefined,
+): boolean {
+  if (!b) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => a[k] === b[k]);
 }

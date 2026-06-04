@@ -136,7 +136,8 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   log("Terminal MCP extension activated");
-  outputChannel.show(true); // Show but don't focus
+  // Output channel is created but kept in the background.
+  // Users can open it via View → Output → "Terminal MCP" when debugging.
 }
 
 async function handleIpcRequest(

@@ -20,6 +20,8 @@ export class TerminalSession {
   readonly sessionId: string;
   readonly name: string;
   readonly cwd: string;
+  readonly env?: Record<string, string>;
+  readonly shell?: string;
   readonly agentId?: string;
   readonly createdAt: number;
 
@@ -28,15 +30,20 @@ export class TerminalSession {
   private commandHistory: CommandExecution[] = [];
   private currentCommand: CommandExecution | null = null;
   private shellExecutionDisposable: vscode.Disposable | null = null;
+  private shellExecutionEndDisposable: vscode.Disposable | null = null;
   private isActive = true;
   private lastCommandAt?: number;
+  private shellIntegrationActive = false;
   private shellReady: Promise<void>;
+  private shellReadyResolve!: () => void;
 
   constructor(config: TerminalSessionConfig, maxOutputLines: number) {
     this.sessionId = generateSessionId();
     this.name = config.name;
     this.cwd =
       config.cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+    this.env = config.env;
+    this.shell = config.shell;
     this.agentId = config.agentId;
     this.createdAt = Date.now();
     this.outputBuffer = createOutputBuffer(maxOutputLines);
@@ -54,7 +61,14 @@ export class TerminalSession {
 
     this.terminal = vscode.window.createTerminal(terminalOptions);
     this.terminal.show(false);
-    this.shellReady = Promise.resolve();
+
+    // shellReady resolves when the terminal is ready to accept commands.
+    // Falls back to a 2-second timeout if shell integration never fires.
+    this.shellReady = new Promise<void>((resolve) => {
+      this.shellReadyResolve = resolve;
+      // Fallback: resolve after 2s even without shell integration signal
+      setTimeout(resolve, 2000);
+    });
 
     this.setupShellIntegrationCapture();
 
@@ -71,6 +85,11 @@ export class TerminalSession {
             `Shell execution started in session ${this.sessionId}: ${event.execution.commandLine?.value ?? "unknown"}`,
           );
 
+          // Resolve the ready promise if still pending
+          this.shellReadyResolve();
+
+          this.shellIntegrationActive = true;
+
           try {
             const stream = event.execution.read();
             for await (const chunk of stream) {
@@ -85,23 +104,26 @@ export class TerminalSession {
         });
 
       if (vscode.window.onDidEndTerminalShellExecution) {
-        vscode.window.onDidEndTerminalShellExecution((event) => {
-          if (event.terminal !== this.terminal) return;
+        this.shellExecutionEndDisposable =
+          vscode.window.onDidEndTerminalShellExecution((event) => {
+            if (event.terminal !== this.terminal) return;
 
-          if (this.currentCommand) {
-            this.currentCommand.completedAt = Date.now();
-            this.currentCommand.exitCode = event.exitCode;
-            this.currentCommand.outputEndLine = this.outputBuffer.lines.length;
-            this.commandHistory.push(this.currentCommand);
-            this.currentCommand = null;
-          }
-          // Update lastCommandAt so the idle reaper doesn't kill the session immediately
-          this.lastCommandAt = Date.now();
+            this.shellIntegrationActive = false;
 
-          log(
-            `Shell execution ended in session ${this.sessionId} with exit code: ${event.exitCode}`,
-          );
-        });
+            if (this.currentCommand) {
+              this.currentCommand.completedAt = Date.now();
+              this.currentCommand.exitCode = event.exitCode;
+              this.currentCommand.outputEndLine = this.outputBuffer.lines.length;
+              this.commandHistory.push(this.currentCommand);
+              this.currentCommand = null;
+            }
+            // Update lastCommandAt so the idle reaper doesn't kill the session immediately
+            this.lastCommandAt = Date.now();
+
+            log(
+              `Shell execution ended in session ${this.sessionId} with exit code: ${event.exitCode}`,
+            );
+          });
       }
     }
   }
@@ -174,12 +196,19 @@ export class TerminalSession {
         }
 
         const output = (outStr + (errStr ? "\n" + errStr : "")).trim();
-        const lines = output.split("\n");
-        for (const line of lines) {
-          appendToBuffer(this.outputBuffer, line + "\r\n");
+
+        // Only append to buffer if Shell Integration didn't already capture
+        // (otherwise output appears twice in the read buffer).
+        if (!this.shellIntegrationActive) {
+          const lines = output.split("\n");
+          for (const line of lines) {
+            appendToBuffer(this.outputBuffer, line + "\r\n");
+          }
         }
 
-        if (this.currentCommand) {
+        // Shell Integration handles command finalization in onDidEndTerminalShellExecution.
+        // Fall back to exec-based finalization only when shell integration is inactive.
+        if (!this.shellIntegrationActive && this.currentCommand) {
           this.currentCommand.completedAt = Date.now();
           this.currentCommand.exitCode = error ? (error.code || 1) : 0;
           this.currentCommand.timedOut = !!(error && error.killed);
@@ -247,6 +276,15 @@ export class TerminalSession {
     return readFromBuffer(this.outputBuffer, offset, maxLines);
   }
 
+  /**
+   * Returns a promise that resolves when the terminal shell is ready
+   * to accept commands. Resolves early if shell integration fires,
+   * otherwise falls back to a 2-second timeout.
+   */
+  whenReady(): Promise<void> {
+    return this.shellReady;
+  }
+
   get isBusy(): boolean {
     return this.currentCommand !== null;
   }
@@ -256,6 +294,8 @@ export class TerminalSession {
       sessionId: this.sessionId,
       name: this.name,
       cwd: this.cwd,
+      env: this.env,
+      shell: this.shell,
       agentId: this.agentId,
       isActive: this.isActive,
       createdAt: this.createdAt,
@@ -277,6 +317,7 @@ export class TerminalSession {
   dispose(): void {
     this.isActive = false;
     this.shellExecutionDisposable?.dispose();
+    this.shellExecutionEndDisposable?.dispose();
     this.terminal.dispose();
     log(`Session ${this.sessionId} disposed`);
   }

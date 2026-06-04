@@ -2,6 +2,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { log, logError } from "../utils/logger.js";
 import type { SessionManager } from "../terminal/session-manager.js";
 import type { McpToolResponse } from "../types/index.js";
+import { version as pkgVersion } from "../../package.json";
 import {
   terminalCreateSchema,
   terminalExecuteSchema,
@@ -104,7 +105,7 @@ export function createMcpRequestHandler(
         },
         serverInfo: {
           name: "bashterm-mcp",
-          version: "0.1.0",
+          version: pkgVersion,
         },
       };
     }

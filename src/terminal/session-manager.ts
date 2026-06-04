@@ -1,9 +1,12 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { TerminalSession } from "./session.js";
+import { CommandGuard } from "../security/command-guard.js";
 import type {
   TerminalSessionConfig,
   TerminalSessionInfo,
   SecurityConfig,
+  ValidationResult,
 } from "../types/index.js";
 import { log, logError } from "../utils/logger.js";
 
@@ -12,9 +15,13 @@ export class SessionManager {
   private onSessionsChangedEmitter = new vscode.EventEmitter<void>();
   readonly onSessionsChanged = this.onSessionsChangedEmitter.event;
   private idleReaperInterval: ReturnType<typeof setInterval> | null = null;
+  private commandGuard: CommandGuard;
 
   constructor() {
-    // Idle reaper disabled - user closes sessions manually
+    this.commandGuard = new CommandGuard(this.getConfig());
+
+    // Start idle session reaper (disabled when idleTimeoutMs = 0)
+    this.startIdleReaper();
 
     // Listen for terminals being closed externally
     vscode.window.onDidCloseTerminal((terminal) => {
@@ -33,6 +40,7 @@ export class SessionManager {
   private getConfig(): SecurityConfig {
     const config = vscode.workspace.getConfiguration("terminalMcp");
     return {
+      allowedCommands: config.get<string[]>("allowedCommands", []),
       blockedCommands: config.get<string[]>("blockedCommands", [
         "rm -rf /",
         "mkfs",
@@ -71,6 +79,9 @@ export class SessionManager {
   createSession(config: TerminalSessionConfig): TerminalSessionInfo {
     const secConfig = this.getConfig();
 
+    // Refresh command guard with latest config
+    this.commandGuard.updateConfig(secConfig);
+
     // Check concurrent session limit
     if (this.sessions.size >= secConfig.maxConcurrentSessions) {
       throw new Error(
@@ -78,17 +89,11 @@ export class SessionManager {
       );
     }
 
-    // Validate working directory
-    if (config.cwd && secConfig.allowedDirectories.length > 0) {
-      const path = require("path");
-      const resolvedCwd = path.resolve(config.cwd);
-      const isAllowed = secConfig.allowedDirectories.some((dir) =>
-        resolvedCwd.startsWith(path.resolve(dir)),
-      );
-      if (!isAllowed) {
-        throw new Error(
-          `Working directory "${config.cwd}" is not in the allowed directories list.`,
-        );
+    // Validate working directory via CommandGuard
+    if (config.cwd) {
+      const dirValidation = this.commandGuard.validateDirectory(config.cwd);
+      if (!dirValidation.valid) {
+        throw new Error(dirValidation.reason ?? "Directory not allowed.");
       }
     }
 
@@ -134,21 +139,12 @@ export class SessionManager {
   }
 
   /**
-   * Validate a command against the security blocklist.
+   * Validate a command against security rules via CommandGuard.
    */
-  validateCommand(command: string): { valid: boolean; reason?: string } {
-    const config = this.getConfig();
-
-    for (const blocked of config.blockedCommands) {
-      if (command.includes(blocked)) {
-        return {
-          valid: false,
-          reason: `Command contains blocked pattern: "${blocked}"`,
-        };
-      }
-    }
-
-    return { valid: true };
+  validateCommand(command: string): ValidationResult {
+    // Refresh guard with latest config before validation
+    this.commandGuard.updateConfig(this.getConfig());
+    return this.commandGuard.validateCommand(command);
   }
 
   /**
