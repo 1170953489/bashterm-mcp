@@ -1,5 +1,6 @@
 import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse } from "../../types/index.js";
+import { resolveShell } from "../../utils/shell.js";
 import { terminalRunSchema } from "./schemas.js";
 import { formatExecuteResult } from "./command-utils.js";
 
@@ -9,6 +10,9 @@ export async function handleTerminalRun(
 ): Promise<McpToolResponse> {
   const input = terminalRunSchema.parse(params);
 
+  // Resolve default shell so reuse + creation use the same value.
+  const shell = resolveShell(input.shell);
+
   // Try to reuse an existing session matching cwd, agentId, env, and shell
   let sessionId: string | undefined;
   let isNewSession = false;
@@ -16,9 +20,7 @@ export async function handleTerminalRun(
   for (const s of existing) {
     if (!s.isActive) continue;
     if (input.cwd && s.cwd !== input.cwd) continue;
-    // Only reuse if the existing session was created with the same shell override
-    if (input.shell && s.shell !== input.shell) continue;
-    if (!input.shell && s.shell) continue; // session has custom shell but request doesn't
+    if (s.shell !== shell) continue;
     // Only reuse if env configuration matches (request without env can reuse any)
     if (input.env && !envsEqual(input.env, s.env)) continue;
     const session = sessionManager.getSession(s.sessionId);
@@ -38,7 +40,7 @@ export async function handleTerminalRun(
       })(),
       cwd: input.cwd,
       env: input.env,
-      shell: input.shell,
+      shell,
       agentId: input.agentId,
     });
     sessionId = sessionInfo.sessionId;

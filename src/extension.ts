@@ -116,8 +116,8 @@ function writeClaudeCodeSettings(
 function createClaudeCodeBashBlockHook(): Record<string, unknown> {
   const blockCommand =
     process.platform === "win32"
-      ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Console]::Error.WriteLine('${CLAUDE_CODE_BASH_BLOCK_MESSAGE}'); exit 2"`
-      : `sh -c 'printf "%s\\n" "${CLAUDE_CODE_BASH_BLOCK_MESSAGE}" >&2; exit 2'`;
+      ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Write-Output '${CLAUDE_CODE_BASH_BLOCK_MESSAGE}'; exit 2"`
+      : `sh -c 'printf "%s\\n" "${CLAUDE_CODE_BASH_BLOCK_MESSAGE}"; exit 2'`;
 
   return {
     matcher: "Bash",

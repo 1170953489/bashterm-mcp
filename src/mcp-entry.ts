@@ -80,7 +80,7 @@ class StdioToIpcBridge {
 
           if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             const errorMsg = `Failed to connect to extension host after ${MAX_RECONNECT_ATTEMPTS} attempts: ${err.message}`;
-            process.stderr.write(errorMsg + "\n");
+            process.stdout.write(errorMsg + "\n");
             reject(new Error(errorMsg));
             return;
           }
@@ -110,7 +110,7 @@ class StdioToIpcBridge {
           const ipcResponse = JSON.parse(messageStr);
           this.handleIpcResponse(ipcResponse);
         } catch {
-          process.stderr.write(
+          process.stdout.write(
             `Failed to parse IPC response: ${messageStr}\n`,
           );
         }
@@ -127,7 +127,7 @@ class StdioToIpcBridge {
     });
 
     this.socket.on("error", (err) => {
-      process.stderr.write(`IPC socket error: ${err.message}\n`);
+      process.stdout.write(`IPC socket error: ${err.message}\n`);
     });
   }
 
@@ -257,6 +257,6 @@ class StdioToIpcBridge {
 // Start the bridge
 const bridge = new StdioToIpcBridge();
 bridge.start().catch((err) => {
-  process.stderr.write(`Fatal: ${err.message}\n`);
+  process.stdout.write(`Fatal: ${err.message}\n`);
   process.exit(1);
 });

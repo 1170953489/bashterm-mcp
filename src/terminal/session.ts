@@ -16,6 +16,7 @@ import {
 import { generateSessionId, generateCommandId } from "../utils/id-generator.js";
 import { log, logError } from "../utils/logger.js";
 import { buildExecOptions, detectShellEncoding } from "../utils/exec-options.js";
+import { isCmdShell, resolveShell } from "../utils/shell.js";
 
 export class TerminalSession {
   readonly sessionId: string;
@@ -44,7 +45,7 @@ export class TerminalSession {
     this.cwd =
       config.cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
     this.env = config.env;
-    this.shell = config.shell;
+    this.shell = resolveShell(config.shell);
     this.agentId = config.agentId;
     this.createdAt = Date.now();
     this.outputBuffer = createOutputBuffer(maxOutputLines);
@@ -56,8 +57,11 @@ export class TerminalSession {
       shellIntegration: { enabled: true },
     };
 
-    if (config.shell) {
-      terminalOptions.shellPath = config.shell;
+    if (this.shell) {
+      terminalOptions.shellPath = this.shell;
+      if (isCmdShell(this.shell)) {
+        terminalOptions.shellArgs = ["/d"];
+      }
     }
 
     this.terminal = vscode.window.createTerminal(terminalOptions);
