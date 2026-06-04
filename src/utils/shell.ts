@@ -2,8 +2,8 @@ import * as path from "path";
 
 /**
  * Resolve the shell BashTerm should use when the caller didn't provide one.
- * On Windows, Node's child_process.exec defaults to cmd.exe; returning an
- * explicit cmd.exe path keeps the visible VSCode terminal in sync with exec.
+ * On Windows, BashTerm uses an explicit cmd.exe path so the visible VSCode
+ * terminal doesn't silently fall back to the user's PowerShell profile.
  */
 export function resolveDefaultShell(platform = process.platform): string | undefined {
   if (platform !== "win32") return undefined;
