@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-06-04
+
+### Added
+- 扩展激活时自动配置 Claude Code hook，禁止内置 Bash 工具，引导使用 BashTerm MCP 工具
+- `restoreClaudeCodeDefaultBash` 命令，允许用户一键恢复 Claude Code 默认 Bash 工具
+
+### Fixed
+- 修复 `shell` 参数无效导致终端使用默认 shell 而非指定 shell 的问题
+- 修复 Windows 中文输出乱码问题
+- 修复 Claude Code hook 自动配置 JSON 格式错误
+
+### Changed
+- `autoConfigureClaudeCode` 改为写入用户目录 `~/.claude/settings.json` 而非项目级别配置
+- README 安装指南简化为仅安装 VSCode 扩展即可，零手动配置
+- README 完善 Claude Code Bash 回归与恢复说明
+
 ## [0.2.1] - 2026-06-04
 
 ### Changed
