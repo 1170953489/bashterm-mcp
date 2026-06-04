@@ -172,6 +172,13 @@ BashTerm runs commands in visible VSCode terminal tabs where you can see output 
 For commands over 30 seconds, use pull mode: `run` with `waitForCompletion: false`, then poll with `read` (`offset: -10`).
 ```
 
+## Latest Changes (0.2.1)
+
+- **Rename cleanup**: Unified all code, docs, and config references to BashTerm MCP — no more legacy names
+- **Tag fix**: Corrected v0.2.0 tag to point to the proper release commit
+
+See [CHANGELOG.md](CHANGELOG.md) for full history.
+
 ## License
 
 MIT

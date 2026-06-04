@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-06-04
+
+### Changed
+- 全面重命名为 BashTerm MCP：统一所有文档和代码中的项目名称引用
+- 修复 v0.2.0 标签指向错误的 commit
+
 ## [0.2.0] - 2026-06-04
 
 ### Added

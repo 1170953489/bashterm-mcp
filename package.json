@@ -2,7 +2,7 @@
   "name": "bashterm-mcp-server",
   "displayName": "BashTerm MCP",
   "description": "MCP server that executes commands in visible VSCode terminal tabs. Supports Windows, macOS and Linux.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "hcdb",
   "license": "MIT",
   "author": "hcdb",
