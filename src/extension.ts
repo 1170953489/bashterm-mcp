@@ -55,16 +55,10 @@ function cleanupSocket(socketPath: string): void {
  * Non-invasive: skips if the workspace doesn't use Claude Code.
  */
 function autoConfigureClaudeCode(): void {
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders || folders.length === 0) return;
-
-  const root = folders[0].uri.fsPath;
-  const claudeDir = path.join(root, ".claude");
+  // Write to user-level config (applies globally, not tied to a specific project)
+  const homeDir = os.homedir();
+  const claudeDir = path.join(homeDir, ".claude");
   const settingsPath = path.join(claudeDir, "settings.json");
-  const claudeMdPath = path.join(root, "CLAUDE.md");
-
-  // Only configure projects that already use Claude Code
-  if (!fs.existsSync(claudeMdPath) && !fs.existsSync(claudeDir)) return;
 
   const hookEntry = {
     matcher: "Bash",
