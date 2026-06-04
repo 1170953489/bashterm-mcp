@@ -2,15 +2,6 @@
 
 MCP server that runs commands in visible VSCode terminal tabs.
 
-## Terminal Execution
-
-Prefer the BashTerm MCP tools (`run`, `exec`, `read`, etc.) over the built-in Bash tool for executing commands. BashTerm runs commands in visible VSCode terminal tabs where the user can see output in real time.
-
-For commands that may take longer than 30 seconds or produce large output, use pull mode:
-1. Call `run` with `waitForCompletion: false`
-2. Call `read` with `offset: -10` to check progress
-3. Repeat until done
-
 ---
 
 ## Release Process
