@@ -60,12 +60,21 @@ function autoConfigureClaudeCode(): void {
   const claudeDir = path.join(homeDir, ".claude");
   const settingsPath = path.join(claudeDir, "settings.json");
 
+  const blockMessage =
+    "Please use BashTerm MCP tools (run / exec / read) instead of the built-in Bash tool. " +
+    "These commands execute visibly in VSCode terminal tabs.";
+  const blockCommand =
+    process.platform === "win32"
+      ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Console]::Error.WriteLine('${blockMessage}'); exit 2"`
+      : `sh -c 'printf "%s\\n" "${blockMessage}" >&2; exit 2'`;
   const hookEntry = {
     matcher: "Bash",
-    action: "block",
-    message:
-      "Please use BashTerm MCP tools (run / exec / read) instead of the built-in Bash tool. " +
-      "These commands execute visibly in VSCode terminal tabs.",
+    hooks: [
+      {
+        type: "command",
+        command: blockCommand,
+      },
+    ],
   };
 
   let settings: Record<string, unknown> = {};
@@ -79,11 +88,35 @@ function autoConfigureClaudeCode(): void {
   }
 
   // Merge the hook without overwriting existing entries
-  const hooks = (settings.hooks as Record<string, unknown[]>) || {};
-  const preToolUse: Array<Record<string, unknown>> = (hooks.PreToolUse as Array<Record<string, unknown>>) || [];
+  const hooks =
+    settings.hooks && typeof settings.hooks === "object" && !Array.isArray(settings.hooks)
+      ? (settings.hooks as Record<string, unknown>)
+      : {};
+  const existingPreToolUse = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
+  const preToolUse = existingPreToolUse.filter((h): h is Record<string, unknown> => {
+    if (!h || typeof h !== "object" || Array.isArray(h)) return false;
+    const entry = h as Record<string, unknown>;
+    const isLegacyBashTermHook =
+      entry.matcher === "Bash" &&
+      entry.action === "block" &&
+      typeof entry.message === "string" &&
+      entry.message.includes("BashTerm MCP");
+    return !isLegacyBashTermHook;
+  });
 
   const alreadyConfigured = preToolUse.some(
-    (h) => h.matcher === "Bash" && h.action === "block",
+    (h) =>
+      h.matcher === "Bash" &&
+      Array.isArray(h.hooks) &&
+      h.hooks.some(
+        (handler) =>
+          handler &&
+          typeof handler === "object" &&
+          !Array.isArray(handler) &&
+          (handler as Record<string, unknown>).type === "command" &&
+          typeof (handler as Record<string, unknown>).command === "string" &&
+          ((handler as Record<string, unknown>).command as string).includes("BashTerm MCP"),
+      ),
   );
   if (alreadyConfigured) return;
 
