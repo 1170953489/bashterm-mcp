@@ -5,10 +5,10 @@
   "description": "BashTerm MCP — execute commands in visible VSCode terminal tabs with output capture and session reuse.",
   "author": "hcdb",
   "license": "MIT",
-  "homepage": "https://github.com/hcdb/bashterm-mcp",
+  "homepage": "https://github.com/1170953489/bashterm-mcp",
   "repository": {
     "source": "github",
-    "url": "https://github.com/hcdb/bashterm-mcp"
+    "url": "https://github.com/1170953489/bashterm-mcp"
   },
   "packages": [
     {
