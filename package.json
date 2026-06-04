@@ -84,6 +84,22 @@
           "default": [],
           "description": "Allowed working directories (empty = unrestricted)"
         },
+        "bashterm-mcp-server.windowsDefaultShell": {
+          "type": "string",
+          "enum": [
+            "vscode",
+            "cmd",
+            "powershell",
+            "pwsh"
+          ],
+          "default": "vscode",
+          "description": "Default shell for Windows when no shell is explicitly requested and command detection is inconclusive. 'vscode' uses the user's configured VSCode terminal profile."
+        },
+        "bashterm-mcp-server.windowsShellDetection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically route high-confidence Windows commands to cmd or PowerShell for the run tool. Existing sessions used by exec are never switched automatically."
+        },
         "bashterm-mcp-server.defaultTimeoutMs": {
           "type": "number",
           "default": 30000,

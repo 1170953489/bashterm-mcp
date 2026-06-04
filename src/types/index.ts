@@ -105,6 +105,8 @@ export interface SecurityConfig {
   maxConcurrentSessions: number;
   maxOutputLines: number;
   idleTimeoutMs: number;
+  windowsDefaultShell: "vscode" | "cmd" | "powershell" | "pwsh";
+  windowsShellDetection: boolean;
 }
 
 /**

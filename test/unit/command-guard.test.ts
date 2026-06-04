@@ -10,6 +10,8 @@ function createConfig(overrides: Partial<SecurityConfig> = {}): SecurityConfig {
     maxConcurrentSessions: 10,
     maxOutputLines: 10000,
     idleTimeoutMs: 300000,
+    windowsDefaultShell: "vscode",
+    windowsShellDetection: true,
     ...overrides,
   };
 }
@@ -66,9 +68,7 @@ describe("CommandGuard", () => {
       const guard = new CommandGuard(createConfig());
       expect(guard.validateCommand("curl http://example.com").valid).toBe(true);
 
-      guard.updateConfig(
-        createConfig({ blockedCommands: ["curl"] }),
-      );
+      guard.updateConfig(createConfig({ blockedCommands: ["curl"] }));
       expect(guard.validateCommand("curl http://example.com").valid).toBe(
         false,
       );
@@ -89,9 +89,9 @@ describe("CommandGuard", () => {
         }),
       );
 
-      expect(
-        guard.validateDirectory("/home/user/projects/myapp").valid,
-      ).toBe(true);
+      expect(guard.validateDirectory("/home/user/projects/myapp").valid).toBe(
+        true,
+      );
       expect(guard.validateDirectory("/tmp").valid).toBe(false);
       expect(guard.validateDirectory("/home/user").valid).toBe(false);
     });

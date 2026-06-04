@@ -1,6 +1,5 @@
 import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse } from "../../types/index.js";
-import { resolveShell } from "../../utils/shell.js";
 import { terminalRunSchema } from "./schemas.js";
 import { formatExecuteResult } from "./command-utils.js";
 
@@ -10,8 +9,13 @@ export async function handleTerminalRun(
 ): Promise<McpToolResponse> {
   const input = terminalRunSchema.parse(params);
 
-  // Resolve default shell so reuse + creation use the same value.
-  const shell = resolveShell(input.shell);
+  // Resolve shell from explicit input, high-confidence Windows command
+  // detection, or the configured default shell.
+  const shellResolution = sessionManager.resolveShell(
+    input.shell,
+    input.command,
+  );
+  const shell = shellResolution.shell;
 
   // Try to reuse an existing session matching cwd, agentId, env, and shell
   let sessionId: string | undefined;
@@ -33,11 +37,13 @@ export async function handleTerminalRun(
   // Create new session only if no compatible one exists
   if (!sessionId) {
     const sessionInfo = sessionManager.createSession({
-      name: input.name ?? (() => {
-        const d = new Date();
-        const pad = (n: number) => String(n).padStart(2, "0");
-        return `BashTerm-${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}-${pad(d.getMinutes())}`;
-      })(),
+      name:
+        input.name ??
+        (() => {
+          const d = new Date();
+          const pad = (n: number) => String(n).padStart(2, "0");
+          return `BashTerm-${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}-${pad(d.getMinutes())}`;
+        })(),
       cwd: input.cwd,
       env: input.env,
       shell,
@@ -51,7 +57,9 @@ export async function handleTerminalRun(
     const session = sessionManager.getSession(sessionId);
     if (!session) {
       return {
-        content: [{ type: "text", text: "Error: Failed to get terminal session." }],
+        content: [
+          { type: "text", text: "Error: Failed to get terminal session." },
+        ],
         isError: true,
       };
     }
@@ -72,7 +80,9 @@ async function executeCommand(
   const session = sessionManager.getSession(sessionId);
   if (!session) {
     return {
-      content: [{ type: "text", text: "Error: Failed to get terminal session." }],
+      content: [
+        { type: "text", text: "Error: Failed to get terminal session." },
+      ],
       isError: true,
     };
   }
@@ -80,7 +90,9 @@ async function executeCommand(
   const validation = sessionManager.validateCommand(input.command);
   if (!validation.valid) {
     return {
-      content: [{ type: "text", text: `Command blocked: ${validation.reason}` }],
+      content: [
+        { type: "text", text: `Command blocked: ${validation.reason}` },
+      ],
       isError: true,
     };
   }
@@ -88,7 +100,11 @@ async function executeCommand(
   const timeoutMs = input.timeoutMs ?? sessionManager.getDefaultTimeout();
   const waitForCompletion = input.waitForCompletion ?? true;
 
-  const result = await session.execute(input.command, timeoutMs, waitForCompletion);
+  const result = await session.execute(
+    input.command,
+    timeoutMs,
+    waitForCompletion,
+  );
 
   return formatExecuteResult(
     result.output,

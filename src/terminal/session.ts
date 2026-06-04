@@ -48,6 +48,7 @@ interface PendingTerminalExecution {
 
 const SHELL_INTEGRATION_START_TIMEOUT_MS = 3000;
 const CAPTURE_POLL_INTERVAL_MS = 100;
+const CMD_OUTPUT_FLUSH_DELAY_MS = 100;
 
 export class TerminalSession {
   readonly sessionId: string;
@@ -67,7 +68,6 @@ export class TerminalSession {
   private isActive = true;
   private lastCommandAt?: number;
   private pendingExecution: PendingTerminalExecution | null = null;
-  private suppressShellIntegrationCapture = false;
   private shellReady: Promise<void>;
   private shellReadyResolve!: () => void;
 
@@ -138,9 +138,7 @@ export class TerminalSession {
           try {
             const stream = event.execution.read();
             for await (const chunk of stream) {
-              if (!this.suppressShellIntegrationCapture) {
-                appendToBuffer(this.outputBuffer, chunk);
-              }
+              appendToBuffer(this.outputBuffer, chunk);
               if (pending) {
                 pending.chunks.push(chunk);
               }
@@ -367,18 +365,16 @@ export class TerminalSession {
       outputStartLine: this.outputBuffer.lines.length,
     };
     this.currentCommand = commandExecution;
+    const outputStartIndex = this.outputBuffer.lines.length;
 
     const files = createCmdCaptureFiles();
     writeCmdScript(files.commandPath, command);
     const wrappedCommand = buildCmdCaptureCommand(
       files.commandPath,
-      files.stdoutPath,
-      files.stderrPath,
       files.exitCodePath,
     );
 
     this.terminal.show(true);
-    this.suppressShellIntegrationCapture = true;
     this.terminal.sendText(wrappedCommand, true);
 
     let timedOut = false;
@@ -393,12 +389,15 @@ export class TerminalSession {
       clearTimeout(timeoutHandle);
     }
 
-    const stdout = readCaptureFile(files.stdoutPath);
-    const stderr = readCaptureFile(files.stderrPath);
-    const output = (stdout + (stderr ? "\n" + stderr : "")).trim();
+    await delay(CMD_OUTPUT_FLUSH_DELAY_MS);
+    const output = this.readBufferedOutputFrom(outputStartIndex);
 
     if (timedOut) {
-      void this.finalizeCmdCaptureWhenReady(commandExecution, files);
+      void this.finalizeCmdCaptureWhenReady(
+        commandExecution,
+        files,
+        outputStartIndex,
+      );
       return {
         commandId,
         output,
@@ -431,13 +430,12 @@ export class TerminalSession {
   private async finalizeCmdCaptureWhenReady(
     commandExecution: CommandExecution,
     files: CmdCaptureFiles,
+    outputStartIndex: number,
   ): Promise<void> {
     await waitForFile(files.exitCodePath, () => !this.isActive);
     if (!this.isActive || !fs.existsSync(files.exitCodePath)) return;
 
-    const stdout = readCaptureFile(files.stdoutPath);
-    const stderr = readCaptureFile(files.stderrPath);
-    const output = (stdout + (stderr ? "\n" + stderr : "")).trim();
+    const output = this.readBufferedOutputFrom(outputStartIndex);
     const exitCodeText = readCaptureFile(files.exitCodePath).trim();
     const exitCode = Number.parseInt(exitCodeText, 10);
     const normalizedExitCode = Number.isFinite(exitCode) ? exitCode : null;
@@ -456,10 +454,6 @@ export class TerminalSession {
     exitCode: number | null,
     output: string,
   ): void {
-    if (output) {
-      appendToBuffer(this.outputBuffer, output);
-    }
-
     commandExecution.completedAt = Date.now();
     commandExecution.exitCode = exitCode ?? undefined;
     commandExecution.outputEndLine = this.outputBuffer.lines.length;
@@ -468,13 +462,16 @@ export class TerminalSession {
     if (this.currentCommand === commandExecution) {
       this.currentCommand = null;
     }
-    this.suppressShellIntegrationCapture = false;
 
     try {
       fs.rmSync(files.captureDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup failures; files are in the OS temp directory.
     }
+  }
+
+  private readBufferedOutputFrom(outputStartIndex: number): string {
+    return this.outputBuffer.lines.slice(outputStartIndex).join("\n").trim();
   }
 
   sendInput(input: string, pressEnter: boolean): void {

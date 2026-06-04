@@ -142,13 +142,6 @@ git ls-remote --tags origin | grep v0.2.1
 
 ## Commit Message Style
 
-> ⚠️ **禁止使用 `git commit -m "多行文本"`**：Windows cmd.exe 下 `-m` 参数中的换行符会被截断，正文全部丢失。
-> 必须先把提交说明写入临时文件，再用 `-F` 读取：
-> ```bash
-> # 用 Write 工具写好 %TEMP%\commit-msg.txt，然后：
-> git commit -F %TEMP%\commit-msg.txt
-> ```
-
 普通提交遵循以下风格（参考 `0782748`）：
 
 ### Subject

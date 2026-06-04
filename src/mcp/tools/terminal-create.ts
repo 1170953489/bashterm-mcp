@@ -1,6 +1,5 @@
 import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse } from "../../types/index.js";
-import { resolveShell } from "../../utils/shell.js";
 import { terminalCreateSchema } from "./schemas.js";
 
 export async function handleTerminalCreate(
@@ -9,7 +8,7 @@ export async function handleTerminalCreate(
 ): Promise<McpToolResponse> {
   const input = terminalCreateSchema.parse(params);
 
-  const shell = resolveShell(input.shell);
+  const shell = sessionManager.resolveShell(input.shell).shell;
 
   const sessionInfo = sessionManager.createSession({
     name: input.name,
@@ -19,7 +18,11 @@ export async function handleTerminalCreate(
     agentId: input.agentId,
   });
 
-  const parts = [`Terminal created: ${sessionInfo.name}`, `session: ${sessionInfo.sessionId}`, `cwd: ${sessionInfo.cwd}`];
+  const parts = [
+    `Terminal created: ${sessionInfo.name}`,
+    `session: ${sessionInfo.sessionId}`,
+    `cwd: ${sessionInfo.cwd}`,
+  ];
   if (sessionInfo.agentId) parts.push(`agent: ${sessionInfo.agentId}`);
 
   return {

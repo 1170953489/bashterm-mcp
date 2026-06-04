@@ -20,27 +20,21 @@ describe("cmd capture utilities", () => {
   it("builds a cmd wrapper that captures stdout, stderr, and exit code", () => {
     const command = buildCmdCaptureCommand(
       "C:\\Temp\\command.cmd",
-      "C:\\Temp\\stdout.txt",
-      "C:\\Temp\\stderr.txt",
       "C:\\Temp\\exit-code.txt",
     );
 
     expect(command).toContain("chcp 65001");
     expect(command).toContain('call "C:\\Temp\\command.cmd"');
-    expect(command).toContain('> "C:\\Temp\\stdout.txt"');
-    expect(command).toContain('2> "C:\\Temp\\stderr.txt"');
     expect(command).toContain("call echo %^ERRORLEVEL%");
-    expect(command).toContain('type "C:\\Temp\\stdout.txt"');
-    expect(command).toContain('type "C:\\Temp\\stderr.txt" 1>&2');
+    expect(command).toContain('> "C:\\Temp\\exit-code.txt"');
     expect(command).toContain("call chcp %^BT_OLD_CP%");
+    expect(command).not.toContain("type ");
   });
 
   it("creates capture files under one temp directory", () => {
     const files = createCmdCaptureFiles();
     cleanupDirs.push(files.captureDir);
 
-    expect(files.stdoutPath).toBe(path.join(files.captureDir, "stdout.txt"));
-    expect(files.stderrPath).toBe(path.join(files.captureDir, "stderr.txt"));
     expect(files.commandPath).toBe(path.join(files.captureDir, "command.cmd"));
     expect(files.exitCodePath).toBe(
       path.join(files.captureDir, "exit-code.txt"),
@@ -67,8 +61,9 @@ describe("cmd capture utilities", () => {
   it("reads capture files with shell-aware decoding", () => {
     const files = createCmdCaptureFiles();
     cleanupDirs.push(files.captureDir);
-    fs.writeFileSync(files.stdoutPath, Buffer.from("hello", "utf8"));
+    const outputPath = path.join(files.captureDir, "output.txt");
+    fs.writeFileSync(outputPath, Buffer.from("hello", "utf8"));
 
-    expect(readCaptureFile(files.stdoutPath)).toBe("hello");
+    expect(readCaptureFile(outputPath)).toBe("hello");
   });
 });

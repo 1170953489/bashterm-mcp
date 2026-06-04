@@ -2,13 +2,10 @@ import { z } from "zod";
 
 // z.coerce.boolean() converts "false" string to true (truthy).
 // This preprocessor handles string "false"/"true" correctly.
-const coerceBoolean = z.preprocess(
-  (val) => {
-    if (typeof val === "string") return val.toLowerCase() === "true";
-    return val;
-  },
-  z.boolean(),
-);
+const coerceBoolean = z.preprocess((val) => {
+  if (typeof val === "string") return val.toLowerCase() === "true";
+  return val;
+}, z.boolean());
 
 export const terminalCreateSchema = z.object({
   name: z.string().min(1).describe("Display name for the terminal tab"),
@@ -20,7 +17,9 @@ export const terminalCreateSchema = z.object({
   shell: z
     .string()
     .optional()
-    .describe("Override shell (e.g., /bin/zsh, /bin/bash)"),
+    .describe(
+      "Override shell (e.g., cmd, powershell, pwsh, /bin/zsh, /bin/bash)",
+    ),
   agentId: z
     .string()
     .optional()
@@ -84,7 +83,9 @@ export const terminalRunSchema = z.object({
   shell: z
     .string()
     .optional()
-    .describe("Override shell (e.g., /bin/zsh, /bin/bash)"),
+    .describe(
+      "Override shell (e.g., cmd, powershell, pwsh, /bin/zsh, /bin/bash)",
+    ),
   agentId: z
     .string()
     .optional()

@@ -6,8 +6,6 @@ import { TextDecoder } from "util";
 export interface CmdCaptureFiles {
   captureDir: string;
   commandPath: string;
-  stdoutPath: string;
-  stderrPath: string;
   exitCodePath: string;
 }
 
@@ -16,8 +14,6 @@ export function createCmdCaptureFiles(): CmdCaptureFiles {
   return {
     captureDir,
     commandPath: path.join(captureDir, "command.cmd"),
-    stdoutPath: path.join(captureDir, "stdout.txt"),
-    stderrPath: path.join(captureDir, "stderr.txt"),
     exitCodePath: path.join(captureDir, "exit-code.txt"),
   };
 }
@@ -29,16 +25,12 @@ export function writeCmdScript(filePath: string, command: string): void {
 
 export function buildCmdCaptureCommand(
   commandPath: string,
-  stdoutPath: string,
-  stderrPath: string,
   exitCodePath: string,
 ): string {
   const commandFile = quoteCmdPath(commandPath);
-  const stdout = quoteCmdPath(stdoutPath);
-  const stderr = quoteCmdPath(stderrPath);
   const exitCode = quoteCmdPath(exitCodePath);
 
-  return `for /f "tokens=2 delims=:" %A in ('chcp') do @set "BT_OLD_CP=%A" & chcp 65001 > nul & call ${commandFile} > ${stdout} 2> ${stderr} & call echo %^ERRORLEVEL% > ${exitCode} & type ${stdout} & type ${stderr} 1>&2 & call chcp %^BT_OLD_CP% > nul`;
+  return `@for /f "tokens=2 delims=:" %A in ('chcp') do @set "BT_OLD_CP=%A" & chcp 65001 > nul & call ${commandFile} & call echo %^ERRORLEVEL% > ${exitCode} & call chcp %^BT_OLD_CP% > nul`;
 }
 
 export function readCaptureFile(filePath: string): string {

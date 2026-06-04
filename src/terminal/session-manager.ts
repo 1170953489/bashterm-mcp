@@ -2,6 +2,10 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { TerminalSession } from "./session.js";
 import { CommandGuard } from "../security/command-guard.js";
+import {
+  resolveShellWithMetadata,
+  type ShellResolution,
+} from "../utils/shell.js";
 import type {
   TerminalSessionConfig,
   TerminalSessionInfo,
@@ -52,7 +56,21 @@ export class SessionManager {
       maxConcurrentSessions: config.get<number>("maxConcurrentSessions", 10),
       maxOutputLines: config.get<number>("maxOutputLines", 10000),
       idleTimeoutMs: config.get<number>("idleTimeoutMs", 300000),
+      windowsDefaultShell: config.get<"vscode" | "cmd" | "powershell" | "pwsh">(
+        "windowsDefaultShell",
+        "vscode",
+      ),
+      windowsShellDetection: config.get<boolean>("windowsShellDetection", true),
     };
+  }
+
+  resolveShell(shell?: string, command?: string): ShellResolution {
+    const config = this.getConfig();
+    return resolveShellWithMetadata(shell, {
+      command,
+      windowsDefaultShell: config.windowsDefaultShell,
+      enableWindowsShellDetection: config.windowsShellDetection,
+    });
   }
 
   private startIdleReaper(): void {
