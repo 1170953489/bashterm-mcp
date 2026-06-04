@@ -18,63 +18,15 @@
 
 ## 快速开始
 
-### Claude Code
+1. 从 [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server) 安装 **BashTerm MCP**
+2. **完成。**
 
-```bash
-claude mcp add BashTerm -- npx bashterm-mcp-server@latest
-```
+扩展自动处理所有配置：
 
-### VS Code / Copilot
+- 通过 `contributes.mcpServers` 注册 MCP 服务器——`run`、`exec`、`read` 等工具立即可用。
+- 自动写入 PreToolUse hook 到 `~/.claude/settings.json`，拦截内置 `Bash` 工具，引导 Claude Code 使用 BashTerm MCP。
 
-在 `.vscode/mcp.json` 中添加：
-
-```json
-{
-  "servers": {
-    "BashTerm": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-<details>
-<summary>Cursor</summary>
-
-在 `.cursor/mcp.json` 中添加：
-
-```json
-{
-  "mcpServers": {
-    "BashTerm": {
-      "command": "npx",
-      "args": ["-y", "bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Claude Desktop</summary>
-
-在 `claude_desktop_config.json` 中添加：
-
-```json
-{
-  "mcpServers": {
-    "BashTerm": {
-      "command": "npx",
-      "args": ["-y", "bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-</details>
+零手动配置。
 
 ## 截图
 
@@ -160,16 +112,6 @@ PASS src/index.test.ts (5 tests)
 | `bashterm-mcp-server.maxOutputLines` | number | 5000 | 每个会话最大缓冲输出行数 |
 | `bashterm-mcp-server.idleTimeout` | number | 1800000 | 空闲会话自动关闭时间（毫秒，0=禁用） |
 | `bashterm-mcp-server.blockedCommands` | string[] | `["rm -rf /"]` | 禁止执行的命令列表 |
-
-## 推荐
-
-LLM 代理内置的 `Bash` 工具将输出内联在对话中，难以翻阅。建议优先使用 BashTerm MCP 在可见终端中执行命令。将以下内容添加到项目的 `CLAUDE.md`：
-
-```markdown
-## 终端执行
-优先使用 BashTerm MCP 工具（`run`、`exec`、`read` 等），而非内置 Bash 工具。
-对于超过 30 秒的命令，使用 pull 模式：`run` 设置 `waitForCompletion: false`，随后用 `read`（`offset: -10`）轮询。
-```
 
 ## 最新更新 (0.2.1)
 

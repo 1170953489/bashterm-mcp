@@ -18,63 +18,15 @@ MCP server that runs shell commands in **visible VSCode terminal tabs** — watc
 
 ## Getting Started
 
-### Claude Code
+1. Install **BashTerm MCP** from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server)
+2. **Done.**
 
-```bash
-claude mcp add BashTerm -- npx bashterm-mcp-server@latest
-```
+The extension automatically:
 
-### VS Code / Copilot
+- Registers the MCP server via `contributes.mcpServers` — all tools (`run`, `exec`, `read`, etc.) are immediately available.
+- Writes a PreToolUse hook to `~/.claude/settings.json` that blocks the built-in `Bash` tool and guides Claude Code to use BashTerm MCP instead.
 
-Add to your `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "BashTerm": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-<details>
-<summary>Cursor</summary>
-
-Add to your `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "BashTerm": {
-      "command": "npx",
-      "args": ["-y", "bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary>Claude Desktop</summary>
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "BashTerm": {
-      "command": "npx",
-      "args": ["-y", "bashterm-mcp-server@latest"]
-    }
-  }
-}
-```
-
-</details>
+Zero manual configuration.
 
 ## Screenshots
 
@@ -160,17 +112,6 @@ The extension reads configuration from VSCode settings under `bashterm-mcp-serve
 | `bashterm-mcp-server.maxOutputLines` | number | 5000 | Max lines kept in output buffer per session |
 | `bashterm-mcp-server.idleTimeout` | number | 1800000 | Close idle sessions after this many ms (0 = disabled) |
 | `bashterm-mcp-server.blockedCommands` | string[] | `["rm -rf /"]` | Commands that will be rejected |
-
-## Recommended
-
-LLM agents include a built-in `Bash` tool that runs commands inline, embedding output in the conversation. Prefer BashTerm MCP for visible, scrollable terminal output. Add this to your project's `CLAUDE.md`:
-
-```markdown
-## Terminal Execution
-Prefer the BashTerm MCP tools (`run`, `exec`, `read`, etc.) over the built-in Bash tool.
-BashTerm runs commands in visible VSCode terminal tabs where you can see output in real time.
-For commands over 30 seconds, use pull mode: `run` with `waitForCompletion: false`, then poll with `read` (`offset: -10`).
-```
 
 ## Latest Changes (0.2.1)
 
