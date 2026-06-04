@@ -1,32 +1,39 @@
-# BashTerm
+# BashTerm MCP
 
 [![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![release](https://img.shields.io/npm/v/bashterm-mcp-server?label=release)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp-server)](https://www.npmjs.com/package/bashterm-mcp-server)
 
-MCP server that runs shell commands in **visible VSCode terminal tabs** — watch output live, scroll history, interact when needed.
+Run AI-generated shell commands in **real, visible VSCode terminals**.
 
-## Key Features
+BashTerm MCP turns Claude Code command execution into something you can see, inspect, interrupt, and continue. Instead of hidden shell calls, commands open in normal VSCode terminal tabs with live output, scrollback, interactive input, reusable sessions, and safety controls.
 
-- **Visible Terminals**: Commands run in real VSCode terminal tabs — watch output live, scroll history, interact when needed.
-- **Session Reuse**: `run` automatically reuses idle sessions, creating new terminals only when necessary.
-- **Non-Blocking Execution**: Fire-and-forget with `waitForCompletion: false`, then poll with `read`.
-- **Subagent Isolation**: Tag sessions with `agentId` to keep parallel agent workloads in separate terminals.
+## Why BashTerm MCP
 
-## Requirements
+- **Visible by default**: Every command runs in a real VSCode terminal tab, so you can watch builds, tests, logs, and failures as they happen.
+- **Claude Code ready**: The extension registers its MCP server automatically and can guide Claude Code away from the hidden built-in `Bash` tool.
+- **Long-task friendly**: Start commands without blocking the agent, then read output incrementally while the process keeps running.
+- **Interactive when needed**: Answer prompts, drive REPLs, confirm commands, or send Ctrl+C-style input through the same terminal session.
+- **Session reuse**: Keep context in a terminal instead of creating a fresh process for every command.
+- **Parallel-agent isolation**: Use `agentId` to keep multiple AI workers in separate, readable terminals.
+- **Practical guardrails**: Block dangerous command prefixes, restrict working directories, cap output buffers, and auto-close idle sessions.
+- **Safe rollback**: Disable the Claude Code auto-hook or run a restore command to return to Claude Code's default Bash behavior.
 
-- VS Code 1.93+
-- Node.js 20+
+## Install
 
-## Getting Started
+1. Install **BashTerm MCP** from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server).
+2. Open VSCode.
+3. Use Claude Code normally.
 
-1. Install **BashTerm MCP** from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server)
-2. **Done.**
+The extension automatically registers the MCP server through `contributes.mcpServers`, so tools such as `run`, `exec`, `read`, and `input` are available without manual MCP JSON setup.
 
-The extension automatically:
+## Claude Code Integration
 
-- Registers the MCP server via `contributes.mcpServers` — all tools (`run`, `exec`, `read`, etc.) are immediately available.
-- Writes a PreToolUse hook to `~/.claude/settings.json` that blocks the built-in `Bash` tool and guides Claude Code to use BashTerm MCP instead.
+BashTerm MCP can write a user-level PreToolUse hook to `~/.claude/settings.json`. That hook blocks Claude Code's built-in hidden `Bash` tool and tells Claude Code to use BashTerm MCP tools instead, keeping command execution visible inside VSCode.
 
-Zero manual configuration.
+You stay in control:
+
+- Turn it off with `bashterm-mcp-server.autoConfigureClaudeCode`.
+- Restore default Bash with `BashTerm MCP: Restore Claude Code Default Bash` from the Command Palette.
+- Disable or uninstall the extension safely: it removes its own Claude Code hook during deactivation.
 
 ## Screenshots
 
@@ -34,91 +41,81 @@ Zero manual configuration.
 ![Exec permission dialog](docs/images/ask_exec_permission.png)
 ![Exec finished](docs/images/exec_finished.png)
 
+## Common Workflows
+
+### Run a Command
+
+Ask Claude Code:
+
+```text
+Run npm test
+```
+
+BashTerm MCP creates or reuses a visible terminal, runs the command, and returns clean output with the exit code.
+
+### Watch a Long Build
+
+```text
+Start npm run build without waiting, then monitor progress
+```
+
+The agent can launch the command with `waitForCompletion: false`, then poll output with `read` while you watch the same terminal live in VSCode.
+
+### Handle Interactive Prompts
+
+```text
+Run npm init and answer the prompts
+```
+
+The agent can start the process, read the prompt, send input, and continue step by step in the visible terminal.
+
+### Separate Parallel Agents
+
+```text
+Have one agent run tests while another runs the linter
+```
+
+Each agent can receive its own `agentId`, keeping terminal sessions and output streams separate.
+
 ## Tools
 
-### Quick Execution
-
-| Tool | Description |
-|------|-------------|
-| `run` | Create (or reuse) a terminal and execute a command in one step. Returns clean output with exit code. |
-
-### Session Management
-
-| Tool | Description |
-|------|-------------|
-| `create` | Open a new visible terminal tab and return a `sessionId`. |
-| `exec` | Run a command in an existing session and capture its output. |
-| `read` | Read session output with offset-based pagination. Use `offset: -N` for tail mode. |
-| `input` | Send text to an interactive process (answer prompts, drive REPLs, confirm actions). |
+| Tool | What it does |
+|------|--------------|
+| `run` | Create or reuse a terminal and run a command in one step. |
+| `create` | Open a visible terminal tab and return a `sessionId`. |
+| `exec` | Run a command in an existing session and capture output. |
+| `read` | Read session output with offset-based pagination or tail mode. |
+| `input` | Send text to an interactive process. |
 | `list` | List active sessions, optionally filtered by `agentId`. |
 | `close` | Close a session and its terminal tab. |
 
-## Usage Patterns
-
-### Simple Command
-
-The `run` tool handles everything — creates a terminal if needed, executes, and returns clean output:
-
-```
-> Run npm test
-```
-
-```
-$ npm test
-PASS src/utils.test.ts (3 tests)
-PASS src/index.test.ts (5 tests)
-
-[exit: 0 | 1243ms | session-abc123]
-```
-
-### Long-Running Process
-
-For builds, deployments, or any command that takes a while:
-
-```
-> Start `npm run build` without waiting, then check progress
-```
-
-The agent launches the command with `waitForCompletion: false` (returns immediately), then polls with `read` (`offset: -10`) until the process finishes.
-
-### Interactive Commands
-
-For commands that need user input:
-
-```
-> Run npm init and answer the prompts
-```
-
-The agent uses `run` to start the command, `read` to check the prompt, and `input` to send responses — driving the interactive process step by step.
-
-### Parallel Agents
-
-Subagents can work in isolated terminals using `agentId`:
-
-```
-> Have one agent run tests while another runs the linter
-```
-
-Each subagent gets its own terminal tagged with its `agentId`, keeping output separate and readable.
-
 ## Configuration
 
-The extension reads configuration from VSCode settings under `bashterm-mcp-server.*`:
+Configure BashTerm MCP from VSCode settings under `bashterm-mcp-server.*`.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `bashterm-mcp-server.maxSessions` | number | 10 | Maximum concurrent terminal sessions |
-| `bashterm-mcp-server.commandTimeout` | number | 30000 | Default command timeout in ms |
-| `bashterm-mcp-server.maxOutputLines` | number | 5000 | Max lines kept in output buffer per session |
-| `bashterm-mcp-server.idleTimeout` | number | 1800000 | Close idle sessions after this many ms (0 = disabled) |
-| `bashterm-mcp-server.blockedCommands` | string[] | `["rm -rf /"]` | Commands that will be rejected |
+| `bashterm-mcp-server.autoConfigureClaudeCode` | boolean | `true` | Automatically configure Claude Code to prefer BashTerm MCP over the built-in `Bash` tool. |
+| `bashterm-mcp-server.blockedCommands` | string[] | `["rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:"]` | Command prefixes that are always rejected. |
+| `bashterm-mcp-server.allowedDirectories` | string[] | `[]` | Allowed working directories. Empty means unrestricted. |
+| `bashterm-mcp-server.defaultTimeoutMs` | number | `30000` | Default command timeout in milliseconds. |
+| `bashterm-mcp-server.maxConcurrentSessions` | number | `10` | Maximum number of concurrent terminal sessions. |
+| `bashterm-mcp-server.maxOutputLines` | number | `10000` | Maximum output lines buffered per session. |
+| `bashterm-mcp-server.idleTimeoutMs` | number | `300000` | Auto-close idle sessions after this many milliseconds. `0` disables it. |
 
-## Latest Changes (0.2.1)
+## Requirements
 
-- **Rename cleanup**: Unified all code, docs, and config references to BashTerm MCP — no more legacy names
-- **Tag fix**: Corrected v0.2.0 tag to point to the proper release commit
+- VSCode 1.99+
+- Node.js 20+
+- Claude Code or another MCP-capable client
 
-See [CHANGELOG.md](CHANGELOG.md) for full history.
+## When It Helps Most
+
+BashTerm MCP is especially useful when the agent needs to run commands you care about observing: tests, package installs, dev servers, migrations, scaffolding tools, deploy scripts, and any command that might ask for input or run longer than a few seconds.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## License
 

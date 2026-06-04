@@ -12,6 +12,10 @@ let ipcServer: net.Server | undefined;
 let sessionManager: SessionManager | undefined;
 let statusBarItem: vscode.StatusBarItem | undefined;
 
+const CLAUDE_CODE_BASH_BLOCK_MESSAGE =
+  "Please use BashTerm MCP tools (run / exec / read) instead of the built-in Bash tool. " +
+  "These commands execute visibly in VSCode terminal tabs.";
+
 function getSocketPath(): string {
   const tmpDir = os.tmpdir();
   // Use a hash based on the workspace to make the socket unique per VSCode window
@@ -22,14 +26,17 @@ function getSocketPath(): string {
   const socketPath = isWin
     ? path.join("\\\\?\\pipe", `bashterm-mcp-${hash}`)
     : path.join(tmpDir, `bashterm-mcp-${hash}.sock`);
+  return socketPath;
+}
+
+function publishSocketPath(socketPath: string): void {
   // Write the socket path to a well-known discovery file so mcp-entry.ts can find it
-  const discoveryPath = path.join(tmpDir, "bashterm-mcp.discovery");
+  const discoveryPath = path.join(os.tmpdir(), "bashterm-mcp.discovery");
   try {
     fs.writeFileSync(discoveryPath, socketPath);
   } catch {
     // Ignore write errors
   }
-  return socketPath;
 }
 
 function cleanupSocket(socketPath: string): void {
@@ -43,31 +50,76 @@ function cleanupSocket(socketPath: string): void {
   }
 }
 
-/**
- * Auto-configure Claude Code to prefer BashTerm MCP over the built-in Bash tool.
- *
- * Detects whether the current workspace is a Claude Code project
- * (has CLAUDE.md or .claude/ directory), and if so, ensures
- * .claude/settings.json contains a PreToolUse hook that blocks
- * the built-in Bash tool with a message pointing to BashTerm MCP.
- *
- * Idempotent: skips if the hook is already present.
- * Non-invasive: skips if the workspace doesn't use Claude Code.
- */
-function autoConfigureClaudeCode(): void {
-  // Write to user-level config (applies globally, not tied to a specific project)
-  const homeDir = os.homedir();
-  const claudeDir = path.join(homeDir, ".claude");
-  const settingsPath = path.join(claudeDir, "settings.json");
+function getClaudeCodeSettingsPath(): { claudeDir: string; settingsPath: string } {
+  const claudeDir = path.join(os.homedir(), ".claude");
+  return {
+    claudeDir,
+    settingsPath: path.join(claudeDir, "settings.json"),
+  };
+}
 
-  const blockMessage =
-    "Please use BashTerm MCP tools (run / exec / read) instead of the built-in Bash tool. " +
-    "These commands execute visibly in VSCode terminal tabs.";
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isLegacyBashTermClaudeCodeHook(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value) || value.matcher !== "Bash") return false;
+
+  const legacyMessage = value.message;
+  return (
+    value.action === "block" &&
+    typeof legacyMessage === "string" &&
+    legacyMessage.includes("BashTerm MCP")
+  );
+}
+
+function isCurrentBashTermClaudeCodeHook(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value) || value.matcher !== "Bash") return false;
+
+  if (!Array.isArray(value.hooks)) return false;
+  return value.hooks.some(
+    (handler) =>
+      isRecord(handler) &&
+      handler.type === "command" &&
+      typeof handler.command === "string" &&
+      handler.command.includes("BashTerm MCP"),
+  );
+}
+
+function isBashTermClaudeCodeHook(value: unknown): value is Record<string, unknown> {
+  return isLegacyBashTermClaudeCodeHook(value) || isCurrentBashTermClaudeCodeHook(value);
+}
+
+function readClaudeCodeSettings(settingsPath: string): Record<string, unknown> {
+  if (!fs.existsSync(settingsPath)) return {};
+
+  try {
+    const raw = fs.readFileSync(settingsPath, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    log("Failed to parse .claude/settings.json");
+    return {};
+  }
+}
+
+function writeClaudeCodeSettings(
+  claudeDir: string,
+  settingsPath: string,
+  settings: Record<string, unknown>,
+): void {
+  if (!fs.existsSync(claudeDir)) {
+    fs.mkdirSync(claudeDir, { recursive: true });
+  }
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+}
+
+function createClaudeCodeBashBlockHook(): Record<string, unknown> {
   const blockCommand =
     process.platform === "win32"
-      ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Console]::Error.WriteLine('${blockMessage}'); exit 2"`
-      : `sh -c 'printf "%s\\n" "${blockMessage}" >&2; exit 2'`;
-  const hookEntry = {
+      ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Console]::Error.WriteLine('${CLAUDE_CODE_BASH_BLOCK_MESSAGE}'); exit 2"`
+      : `sh -c 'printf "%s\\n" "${CLAUDE_CODE_BASH_BLOCK_MESSAGE}" >&2; exit 2'`;
+
+  return {
     matcher: "Bash",
     hooks: [
       {
@@ -76,62 +128,77 @@ function autoConfigureClaudeCode(): void {
       },
     ],
   };
+}
 
-  let settings: Record<string, unknown> = {};
-  if (fs.existsSync(settingsPath)) {
-    try {
-      const raw = fs.readFileSync(settingsPath, "utf-8");
-      settings = JSON.parse(raw);
-    } catch {
-      log("Failed to parse .claude/settings.json; will overwrite with auto-config");
-    }
-  }
+/**
+ * Auto-configure Claude Code to prefer BashTerm MCP over the built-in Bash tool.
+ *
+ * Ensures user-level .claude/settings.json contains a PreToolUse hook that blocks
+ * the built-in Bash tool with a message pointing to BashTerm MCP.
+ *
+ * Idempotent: skips if the hook is already present.
+ */
+function autoConfigureClaudeCode(): void {
+  // Write to user-level config (applies globally, not tied to a specific project)
+  const { claudeDir, settingsPath } = getClaudeCodeSettingsPath();
+  const settings = readClaudeCodeSettings(settingsPath);
 
   // Merge the hook without overwriting existing entries
-  const hooks =
-    settings.hooks && typeof settings.hooks === "object" && !Array.isArray(settings.hooks)
-      ? (settings.hooks as Record<string, unknown>)
-      : {};
+  const hooks = isRecord(settings.hooks) ? settings.hooks : {};
   const existingPreToolUse = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
-  const preToolUse = existingPreToolUse.filter((h): h is Record<string, unknown> => {
-    if (!h || typeof h !== "object" || Array.isArray(h)) return false;
-    const entry = h as Record<string, unknown>;
-    const isLegacyBashTermHook =
-      entry.matcher === "Bash" &&
-      entry.action === "block" &&
-      typeof entry.message === "string" &&
-      entry.message.includes("BashTerm MCP");
-    return !isLegacyBashTermHook;
-  });
-
-  const alreadyConfigured = preToolUse.some(
-    (h) =>
-      h.matcher === "Bash" &&
-      Array.isArray(h.hooks) &&
-      h.hooks.some(
-        (handler) =>
-          handler &&
-          typeof handler === "object" &&
-          !Array.isArray(handler) &&
-          (handler as Record<string, unknown>).type === "command" &&
-          typeof (handler as Record<string, unknown>).command === "string" &&
-          ((handler as Record<string, unknown>).command as string).includes("BashTerm MCP"),
-      ),
+  const preToolUse = existingPreToolUse.filter((h): h is Record<string, unknown> =>
+    isRecord(h) && !isLegacyBashTermClaudeCodeHook(h),
   );
-  if (alreadyConfigured) return;
 
-  preToolUse.push(hookEntry);
+  const alreadyConfigured = preToolUse.some(isCurrentBashTermClaudeCodeHook);
+  const needsCleanup = preToolUse.length !== existingPreToolUse.length;
+  if (alreadyConfigured && !needsCleanup) return;
+
+  if (!alreadyConfigured) {
+    preToolUse.push(createClaudeCodeBashBlockHook());
+  }
   hooks.PreToolUse = preToolUse;
   settings.hooks = hooks;
 
   try {
-    if (!fs.existsSync(claudeDir)) {
-      fs.mkdirSync(claudeDir, { recursive: true });
-    }
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+    writeClaudeCodeSettings(claudeDir, settingsPath, settings);
     log("Auto-configured .claude/settings.json: Bash tool blocked, BashTerm MCP preferred");
   } catch (err) {
     logError("Failed to auto-configure .claude/settings.json", err);
+  }
+}
+
+function restoreClaudeCodeDefaultBash(): boolean {
+  const { claudeDir, settingsPath } = getClaudeCodeSettingsPath();
+  if (!fs.existsSync(settingsPath)) return false;
+
+  const settings = readClaudeCodeSettings(settingsPath);
+  if (!isRecord(settings.hooks)) return false;
+
+  const hooks = settings.hooks;
+  const existingPreToolUse = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
+  const preToolUse = existingPreToolUse.filter((hook) => !isBashTermClaudeCodeHook(hook));
+  if (preToolUse.length === existingPreToolUse.length) return false;
+
+  if (preToolUse.length > 0) {
+    hooks.PreToolUse = preToolUse;
+  } else {
+    delete hooks.PreToolUse;
+  }
+
+  if (Object.keys(hooks).length > 0) {
+    settings.hooks = hooks;
+  } else {
+    delete settings.hooks;
+  }
+
+  try {
+    writeClaudeCodeSettings(claudeDir, settingsPath, settings);
+    log("Restored Claude Code default Bash by removing BashTerm MCP hook");
+    return true;
+  } catch (err) {
+    logError("Failed to restore Claude Code default Bash", err);
+    return false;
   }
 }
 
@@ -139,8 +206,35 @@ export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = initLogger();
   log("BashTerm MCP extension activating...");
 
-  // Auto-configure Claude Code to prefer BashTerm MCP over built-in Bash
-  autoConfigureClaudeCode();
+  const applyClaudeCodePreference = (): void => {
+    const autoConfigureClaude = vscode.workspace
+      .getConfiguration("bashterm-mcp-server")
+      .get<boolean>("autoConfigureClaudeCode", true);
+    if (autoConfigureClaude) {
+      autoConfigureClaudeCode();
+    } else {
+      restoreClaudeCodeDefaultBash();
+    }
+  };
+  applyClaudeCodePreference();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("bashterm-mcp-server.autoConfigureClaudeCode")) {
+        applyClaudeCodePreference();
+      }
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("bashterm-mcp-server.restoreClaudeCodeDefaultBash", () => {
+      const restored = restoreClaudeCodeDefaultBash();
+      const message = restored
+        ? "Claude Code default Bash restored. Restart Claude Code to apply the change."
+        : "No BashTerm MCP Claude Code hook was found.";
+      void vscode.window.showInformationMessage(message);
+    }),
+  );
 
   // Initialize session manager
   sessionManager = new SessionManager();
@@ -168,6 +262,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Setup IPC server
   const socketPath = getSocketPath();
+  publishSocketPath(socketPath);
   cleanupSocket(socketPath);
 
   ipcServer = net.createServer((connection) => {
@@ -260,6 +355,7 @@ async function handleIpcRequest(
 
 export function deactivate(): void {
   log("BashTerm MCP extension deactivating...");
+  restoreClaudeCodeDefaultBash();
 
   if (ipcServer) {
     ipcServer.close();

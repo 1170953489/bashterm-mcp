@@ -32,13 +32,20 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:bashterm-mcp-server.restoreClaudeCodeDefaultBash"
   ],
   "main": "./dist/extension.js",
   "bin": {
     "bashterm-mcp-server": "dist/mcp-entry.js"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "bashterm-mcp-server.restoreClaudeCodeDefaultBash",
+        "title": "BashTerm MCP: Restore Claude Code Default Bash"
+      }
+    ],
     "mcpServers": {
       "bashterm-mcp-server": {
         "type": "stdio",
@@ -51,6 +58,11 @@
     "configuration": {
       "title": "BashTerm MCP",
       "properties": {
+        "bashterm-mcp-server.autoConfigureClaudeCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically configure Claude Code to block the built-in Bash tool and prefer BashTerm MCP tools"
+        },
         "bashterm-mcp-server.blockedCommands": {
           "type": "array",
           "items": {
