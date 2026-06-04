@@ -38,7 +38,7 @@ export class SessionManager {
   }
 
   private getConfig(): SecurityConfig {
-    const config = vscode.workspace.getConfiguration("terminalMcp");
+    const config = vscode.workspace.getConfiguration("bashterm-mcp-server");
     return {
       allowedCommands: config.get<string[]>("allowedCommands", []),
       blockedCommands: config.get<string[]>("blockedCommands", [

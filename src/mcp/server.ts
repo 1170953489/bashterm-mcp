@@ -104,7 +104,7 @@ export function createMcpRequestHandler(
           tools: {},
         },
         serverInfo: {
-          name: "bashterm-mcp",
+          name: "bashterm-mcp-server",
           version: pkgVersion,
         },
       };

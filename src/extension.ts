@@ -45,7 +45,7 @@ function cleanupSocket(socketPath: string): void {
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = initLogger();
-  log("Terminal MCP extension activating...");
+  log("BashTerm MCP extension activating...");
 
   // Initialize session manager
   sessionManager = new SessionManager();
@@ -55,8 +55,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.StatusBarAlignment.Left,
     100,
   );
-  statusBarItem.text = "$(terminal) MCP: 0 sessions";
-  statusBarItem.tooltip = "Terminal MCP - Active sessions";
+  statusBarItem.text = "$(terminal) BashTerm: 0 sessions";
+  statusBarItem.tooltip = "BashTerm MCP - Active sessions";
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 
@@ -64,7 +64,7 @@ export function activate(context: vscode.ExtensionContext): void {
   sessionManager.onSessionsChanged(() => {
     if (statusBarItem && sessionManager) {
       const count = sessionManager.getActiveSessionCount();
-      statusBarItem.text = `$(terminal) MCP: ${count} session${count !== 1 ? "s" : ""}`;
+      statusBarItem.text = `$(terminal) BashTerm: ${count} session${count !== 1 ? "s" : ""}`;
     }
   });
 
@@ -135,9 +135,9 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   });
 
-  log("Terminal MCP extension activated");
+  log("BashTerm MCP extension activated");
   // Output channel is created but kept in the background.
-  // Users can open it via View → Output → "Terminal MCP" when debugging.
+  // Users can open it via View → Output → "BashTerm MCP" when debugging.
 }
 
 async function handleIpcRequest(
@@ -164,7 +164,7 @@ async function handleIpcRequest(
 }
 
 export function deactivate(): void {
-  log("Terminal MCP extension deactivating...");
+  log("BashTerm MCP extension deactivating...");
 
   if (ipcServer) {
     ipcServer.close();

@@ -49,7 +49,7 @@ export class TerminalSession {
     this.outputBuffer = createOutputBuffer(maxOutputLines);
 
     const terminalOptions: vscode.TerminalOptions & { shellIntegration?: { enabled: boolean } } = {
-      name: `MCP: ${config.name}`,
+      name: `BashTerm: ${config.name}`,
       cwd: this.cwd,
       env: config.env,
       shellIntegration: { enabled: true },

@@ -4,7 +4,7 @@ let outputChannel: vscode.OutputChannel | undefined;
 
 export function initLogger(): vscode.OutputChannel {
   if (!outputChannel) {
-    outputChannel = vscode.window.createOutputChannel("Terminal MCP");
+    outputChannel = vscode.window.createOutputChannel("BashTerm MCP");
   }
   return outputChannel;
 }

@@ -1,14 +1,14 @@
 {
-  "name": "bashterm-mcp",
-  "displayName": "Terminal MCP Server (Windows Compatible)",
-  "description": "MCP server that provides visible terminal sessions in VSCode. Supports Windows, macOS and Linux.",
+  "name": "bashterm-mcp-server",
+  "displayName": "BashTerm MCP",
+  "description": "MCP server that executes commands in visible VSCode terminal tabs. Supports Windows, macOS and Linux.",
   "version": "0.2.0",
   "publisher": "hcdb",
   "license": "MIT",
   "author": "hcdb",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/1170953489/bashterm-mcp.git"
+    "url": "git+https://github.com/1170953489/bashterm-mcp-server.git"
   },
   "homepage": "https://github.com/1170953489/bashterm-mcp#readme",
   "bugs": {
@@ -23,7 +23,7 @@
     "model-context-protocol",
     "ai-tools"
   ],
-  "mcpName": "io.github.hcdb/bashterm-mcp",
+  "mcpName": "io.github.hcdb/bashterm-mcp-server",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.99.0"
@@ -36,11 +36,11 @@
   ],
   "main": "./dist/extension.js",
   "bin": {
-    "bashterm-mcp": "dist/mcp-entry.js"
+    "bashterm-mcp-server": "dist/mcp-entry.js"
   },
   "contributes": {
     "mcpServers": {
-      "bashterm-mcp": {
+      "bashterm-mcp-server": {
         "type": "stdio",
         "command": "node",
         "args": [
@@ -49,9 +49,9 @@
       }
     },
     "configuration": {
-      "title": "Terminal MCP",
+      "title": "BashTerm MCP",
       "properties": {
-        "terminalMcp.blockedCommands": {
+        "bashterm-mcp-server.blockedCommands": {
           "type": "array",
           "items": {
             "type": "string"
@@ -64,7 +64,7 @@
           ],
           "description": "Commands that are never allowed to execute"
         },
-        "terminalMcp.allowedDirectories": {
+        "bashterm-mcp-server.allowedDirectories": {
           "type": "array",
           "items": {
             "type": "string"
@@ -72,22 +72,22 @@
           "default": [],
           "description": "Allowed working directories (empty = unrestricted)"
         },
-        "terminalMcp.defaultTimeoutMs": {
+        "bashterm-mcp-server.defaultTimeoutMs": {
           "type": "number",
           "default": 30000,
           "description": "Default timeout for command execution in milliseconds"
         },
-        "terminalMcp.maxConcurrentSessions": {
+        "bashterm-mcp-server.maxConcurrentSessions": {
           "type": "number",
           "default": 10,
           "description": "Maximum number of concurrent terminal sessions"
         },
-        "terminalMcp.maxOutputLines": {
+        "bashterm-mcp-server.maxOutputLines": {
           "type": "number",
           "default": 10000,
           "description": "Maximum number of output lines to buffer per session"
         },
-        "terminalMcp.idleTimeoutMs": {
+        "bashterm-mcp-server.idleTimeoutMs": {
           "type": "number",
           "default": 300000,
           "description": "Auto-close idle sessions after this many milliseconds (0 = disabled)"

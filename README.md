@@ -1,17 +1,15 @@
-# bashterm-mcp
+# BashTerm
 
-[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![GitHub Release](https://img.shields.io/github/v/release/1170953489/bashterm-mcp)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp)](https://www.npmjs.com/package/bashterm-mcp) [![VSIX](https://img.shields.io/github/v/release/1170953489/bashterm-mcp?label=vsix&color=blue)](https://github.com/1170953489/bashterm-mcp/releases)
+[![中文文档](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md) [![release](https://img.shields.io/npm/v/bashterm-mcp-server?label=release)](https://github.com/1170953489/bashterm-mcp/releases) [![npm version](https://img.shields.io/npm/v/bashterm-mcp-server)](https://www.npmjs.com/package/bashterm-mcp-server)
 
-MCP server that executes commands in **visible VSCode terminal tabs** with full output capture. Unlike inline execution, every command runs in a real terminal you can see, scroll, and interact with.
+MCP server that runs shell commands in **visible VSCode terminal tabs** — watch output live, scroll history, interact when needed.
 
 ## Key Features
 
-- **Visible Terminals**: Commands run in real VSCode terminal tabs, not hidden processes. You see everything in real time.
-- **Session Reuse**: The `run` tool automatically reuses idle sessions, creating new terminals only when needed.
-- **Long-Running Support**: Fire-and-forget execution with `waitForCompletion: false`, then poll output incrementally with `read`.
-- **Subagent Isolation**: Tag sessions with `agentId` to keep parallel agent workloads separated.
-
-> **Windows Compatible** — This fork fully supports Windows, including Chinese output without garbled text.
+- **Visible Terminals**: Commands run in real VSCode terminal tabs — watch output live, scroll history, interact when needed.
+- **Session Reuse**: `run` automatically reuses idle sessions, creating new terminals only when necessary.
+- **Non-Blocking Execution**: Fire-and-forget with `waitForCompletion: false`, then poll with `read`.
+- **Subagent Isolation**: Tag sessions with `agentId` to keep parallel agent workloads in separate terminals.
 
 ## Requirements
 
@@ -23,7 +21,7 @@ MCP server that executes commands in **visible VSCode terminal tabs** with full 
 ### Claude Code
 
 ```bash
-claude mcp add BashTerm -- npx bashterm-mcp@latest
+claude mcp add BashTerm -- npx bashterm-mcp-server@latest
 ```
 
 ### VS Code / Copilot
@@ -36,7 +34,7 @@ Add to your `.vscode/mcp.json`:
     "BashTerm": {
       "type": "stdio",
       "command": "npx",
-      "args": ["bashterm-mcp@latest"]
+      "args": ["bashterm-mcp-server@latest"]
     }
   }
 }
@@ -52,7 +50,7 @@ Add to your `.cursor/mcp.json`:
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "bashterm-mcp@latest"]
+      "args": ["-y", "bashterm-mcp-server@latest"]
     }
   }
 }
@@ -70,7 +68,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "BashTerm": {
       "command": "npx",
-      "args": ["-y", "bashterm-mcp@latest"]
+      "args": ["-y", "bashterm-mcp-server@latest"]
     }
   }
 }
@@ -78,26 +76,10 @@ Add to your `claude_desktop_config.json`:
 
 </details>
 
-### Your First Prompt
-
-After installation, try asking:
-
-> Run `ls -la` in the terminal
-
-You should see a new terminal tab open in VSCode with the command output.
-
 ## Screenshots
 
-### Running a command with `run`
-
 ![Run command output](docs/images/run_finished.png)
-
-### Permission dialog for `exec`
-
 ![Exec permission dialog](docs/images/ask_exec_permission.png)
-
-### Exec result with clean output
-
 ![Exec finished](docs/images/exec_finished.png)
 
 ## Tools
@@ -112,12 +94,12 @@ You should see a new terminal tab open in VSCode with the command output.
 
 | Tool | Description |
 |------|-------------|
-| `create` | Create a new visible terminal session. Returns a `sessionId`. |
-| `exec` | Execute a command in an existing session and capture output. |
-| `read` | Read output from a session with pagination. Supports incremental reads and tail mode (`offset: -N`). |
-| `input` | Send text to an interactive terminal (prompts, REPLs, confirmations). |
-| `list` | List active sessions. Optionally filter by `agentId`. |
-| `close` | Close a terminal session and its VSCode tab. |
+| `create` | Open a new visible terminal tab and return a `sessionId`. |
+| `exec` | Run a command in an existing session and capture its output. |
+| `read` | Read session output with offset-based pagination. Use `offset: -N` for tail mode. |
+| `input` | Send text to an interactive process (answer prompts, drive REPLs, confirm actions). |
+| `list` | List active sessions, optionally filtered by `agentId`. |
+| `close` | Close a session and its terminal tab. |
 
 ## Usage Patterns
 
@@ -145,10 +127,7 @@ For builds, deployments, or any command that takes a while:
 > Start `npm run build` without waiting, then check progress
 ```
 
-The agent will:
-1. Call `run` with `waitForCompletion: false` — returns immediately
-2. Call `read` with `offset: -10` to check the last 10 lines
-3. Repeat until the process completes
+The agent launches the command with `waitForCompletion: false` (returns immediately), then polls with `read` (`offset: -10`) until the process finishes.
 
 ### Interactive Commands
 
@@ -158,10 +137,7 @@ For commands that need user input:
 > Run npm init and answer the prompts
 ```
 
-The agent will:
-1. Call `run` with `npm init`
-2. Call `read` to see the prompt
-3. Call `input` to send the answer
+The agent uses `run` to start the command, `read` to check the prompt, and `input` to send responses — driving the interactive process step by step.
 
 ### Parallel Agents
 
@@ -171,141 +147,30 @@ Subagents can work in isolated terminals using `agentId`:
 > Have one agent run tests while another runs the linter
 ```
 
-Each subagent gets its own terminal tagged with its `agentId`, preventing output from mixing.
+Each subagent gets its own terminal tagged with its `agentId`, keeping output separate and readable.
 
 ## Configuration
 
-The extension reads configuration from VSCode settings under `terminalMcp.*`:
+The extension reads configuration from VSCode settings under `bashterm-mcp-server.*`:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `terminalMcp.maxSessions` | number | 10 | Maximum concurrent terminal sessions |
-| `terminalMcp.commandTimeout` | number | 30000 | Default command timeout in ms |
-| `terminalMcp.maxOutputLines` | number | 5000 | Max lines kept in output buffer per session |
-| `terminalMcp.idleTimeout` | number | 1800000 | Close idle sessions after this many ms (0 = disabled) |
-| `terminalMcp.blockedCommands` | string[] | `["rm -rf /"]` | Commands that will be rejected |
+| `bashterm-mcp-server.maxSessions` | number | 10 | Maximum concurrent terminal sessions |
+| `bashterm-mcp-server.commandTimeout` | number | 30000 | Default command timeout in ms |
+| `bashterm-mcp-server.maxOutputLines` | number | 5000 | Max lines kept in output buffer per session |
+| `bashterm-mcp-server.idleTimeout` | number | 1800000 | Close idle sessions after this many ms (0 = disabled) |
+| `bashterm-mcp-server.blockedCommands` | string[] | `["rm -rf /"]` | Commands that will be rejected |
 
-## Recommended: Set as Preferred Tool
+## Recommended
 
-LLM agents like Claude Code have a built-in `Bash` tool that executes commands inline within the chat. The output is embedded in the conversation and hard to read, especially for commands with verbose output. **We recommend telling the agent to prefer this MCP over its built-in Bash tool.**
-
-Add the following to your project's `CLAUDE.md` (or equivalent instructions file):
+LLM agents include a built-in `Bash` tool that runs commands inline, embedding output in the conversation. Prefer BashTerm MCP for visible, scrollable terminal output. Add this to your project's `CLAUDE.md`:
 
 ```markdown
 ## Terminal Execution
-
-Prefer the BashTerm MCP tools (`run`, `exec`, `read`, etc.) over the built-in Bash tool for executing commands.
-BashTerm runs commands in visible VSCode terminal tabs where the user can see output in real time.
-Only fall back to the built-in Bash tool for simple, non-interactive operations like reading environment variables.
-
-For commands that may take longer than 30 seconds or produce large amounts of output (builds, test suites,
-deployments, installs), use the pull mode pattern:
-1. Call `run` with `waitForCompletion: false` to launch the command without blocking.
-2. Call `read` with `offset: -10` to check the last 10 lines of output.
-3. Repeat step 2 until you see the command has finished (look for exit messages, prompts, or "Done").
-4. Report the final result to the user.
-
-This prevents conversation timeouts and lets the user watch progress in the terminal in real time.
+Prefer the BashTerm MCP tools (`run`, `exec`, `read`, etc.) over the built-in Bash tool.
+BashTerm runs commands in visible VSCode terminal tabs where you can see output in real time.
+For commands over 30 seconds, use pull mode: `run` with `waitForCompletion: false`, then poll with `read` (`offset: -10`).
 ```
-
-**Why this matters:**
-
-| | Built-in Bash | BashTerm MCP |
-|---|---|---|
-| Output visibility | Embedded in chat, hard to scroll | Visible in VSCode terminal tab |
-| Real-time feedback | User sees nothing until command finishes | User watches output live |
-| Long-running commands | Blocks the conversation until timeout | Fire-and-forget + polling |
-| Session state | Each command is isolated | Persistent sessions with history |
-| Interactive commands | Not supported | Send input to prompts/REPLs |
-
-## Development: Updating the Extension
-
-VSCode aggressively caches extensions in memory. When developing locally, `code --install-extension` and even "Developer: Reload Window" may **not** reload your changes. Use this workflow:
-
-### Quick update (no restart needed)
-
-After modifying source files, build and copy directly into the installed extension directory:
-
-```bash
-cd /path/to/bashterm-mcp
-npm run build
-cp dist/extension.js ~/.vscode/extensions/hcdb.bashterm-mcp-<version>/dist/extension.js
-```
-
-Then run **"Developer: Reload Window"** (`Ctrl+Shift+P`).
-
-### Full reinstall (when quick update doesn't work)
-
-If VSCode still uses old code:
-
-```bash
-# 1. Uninstall and remove all copies
-code --uninstall-extension hcdb.bashterm-mcp
-rm -rf ~/.vscode/extensions/hcdb.bashterm-mcp-*
-
-# 2. Check for ghost entries with old publisher names
-# Look in ~/.vscode/extensions/extensions.json for stale entries
-# Remove any entries with old publisher IDs (e.g., "terminal-mcp.bashterm-mcp")
-
-# 3. Close VSCode completely (not just reload)
-
-# 4. Rebuild and install
-npm run build
-npx vsce package --allow-missing-repository
-code --install-extension bashterm-mcp-<version>.vsix --force
-
-# 5. Open VSCode
-```
-
-### Verify the correct version is loaded
-
-```bash
-# Check which extension directories exist
-ls ~/.vscode/extensions/ | grep terminal
-
-# Verify your changes are in the installed extension
-grep "YOUR_UNIQUE_STRING" ~/.vscode/extensions/hcdb.bashterm-mcp-*/dist/extension.js
-
-# Compare checksums
-md5sum dist/extension.js ~/.vscode/extensions/hcdb.bashterm-mcp-*/dist/extension.js
-```
-
-## Large Output Handling
-
-When `read` returns output that exceeds the MCP client's token limit, the system automatically saves the full output to a temporary JSON file and returns the file path in the error message.
-
-To extract the relevant content:
-
-```bash
-# Get the last 50 lines (most relevant for status)
-tail -50 /path/to/saved/file.txt
-
-# Or parse the JSON to extract the text content
-python3 -c "import json; data=json.load(open('/path/to/file.txt')); print(data[0]['text'][-2000:])"
-```
-
-The file format is JSON: `[{"type": "text", "text": "..."}]`
-
-This commonly happens with commands that produce heavy TUI output (progress bars, ANSI escape codes). Use smaller `offset` values (e.g., `offset: -20` instead of `offset: -100`) to reduce the captured output size.
-
-## How It Works
-
-1. The **VSCode extension** activates and starts an IPC server (Named Pipe on Windows, Unix socket on macOS/Linux)
-2. The **MCP entry point** (`mcp-entry.js`) is spawned by the MCP client and bridges JSON-RPC stdio with the IPC socket
-3. Commands execute via `child_process.exec()` for reliable cross-platform output capture and exit code detection
-4. Output is stored in circular buffers with pagination support for efficient reading
-
-## Latest Changes (0.2.0)
-
-- **Command allowlist**: New `allowedCommands` config to restrict which commands can run
-- **Session idle reaper**: Auto-close inactive terminals after 5 minutes (configurable, disable with `0`)
-- **Bug fixes**: Fixed duplicate output from Shell Integration + exec, negative buffer index, notification memory leak
-- **Performance**: Batch buffer eviction replaces per-line shift (O(n×m) → O(n+m))
-- **Better session reuse**: Now matches `env` and `shell` config when reusing terminals
-- **Shell-ready detection**: Replaces hardcoded 500ms delay with proper detection + 2s fallback
-- **Code cleanup**: Enabled CommandGuard, extracted shared formatting, dynamic version reading from package.json
-
-See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 ## License
 

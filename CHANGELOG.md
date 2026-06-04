@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [0.2.0] - 2026-06-04
 
 ### Added
-- 命令白名单支持（`terminalMcp.allowedCommands` 配置）
+- 命令白名单支持（`bashterm-mcp.allowedCommands` 配置）
 - 终端就绪检测 `whenReady()`：基于 Shell Integration 信号 + 2s fallback
 - 会话复用时匹配 `env` 和 `shell` 配置，避免环境冲突
 - `cleanOutput()` / `stripCommandEcho()` ANSI 清洗工具函数，使用 `strip-ansi` 库
