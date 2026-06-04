@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-06-04
+
+### Added
+- Windows 命令 shell 自动选择策略：根据命令特征自动路由到 cmd 或 PowerShell，提升 Windows 平台命令执行兼容性
+
+### Fixed
+- 修复 cmd 多行命令捕获执行问题
+- 修复终端命令双执行与 shell 返回捕获问题
+
+### Changed
+- 完善 CLAUDE.md 发布流程规则和 CHANGELOG 补全
+
 ## [0.2.3] - 2026-06-04
 
 ### Fixed

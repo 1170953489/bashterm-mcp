@@ -102,6 +102,8 @@ Configure BashTerm MCP from VSCode settings under `bashterm-mcp-server.*`.
 | `bashterm-mcp-server.maxConcurrentSessions` | number | `10` | Maximum number of concurrent terminal sessions. |
 | `bashterm-mcp-server.maxOutputLines` | number | `10000` | Maximum output lines buffered per session. |
 | `bashterm-mcp-server.idleTimeoutMs` | number | `300000` | Auto-close idle sessions after this many milliseconds. `0` disables it. |
+| `bashterm-mcp-server.windowsDefaultShell` | string | `"vscode"` | Default shell for Windows when no shell is explicitly requested. Options: `vscode`, `cmd`, `powershell`, `pwsh`. |
+| `bashterm-mcp-server.windowsShellDetection` | boolean | `true` | Automatically route high-confidence Windows commands to cmd or PowerShell for the `run` tool. |
 
 ## Requirements
 
