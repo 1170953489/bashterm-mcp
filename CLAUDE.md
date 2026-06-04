@@ -1,21 +1,23 @@
-# Project: BashTerm MCP
-
-MCP server that runs commands in visible VSCode terminal tabs.
-
----
-
 ## Release Process
 
 以下以发布 v0.2.1 为例，一步一步执行。
 
 > 📋 **规则编写原则**：只描述当前正确的操作步骤和禁止事项，不写「历史上有一次…」「之前搞错过…」等回顾性描述。规则是给人照着做的，不是用来复盘过去的。
 
-### 1. 更新版本号（2 个文件，3 处）
+### 1. 确定并更新版本号（2 个文件，3 处）
+
+**版本号递增规则**（遵循 semver，当前为 0.x 阶段）：
+
+| 场景 | 递增位 | 示例 |
+|---|---|---|
+| 纯 bug 修复、文档修正、小改进 | Patch（第三位） | 0.2.2 → 0.2.3 |
+| 新功能、重要变更、非兼容改动 | Minor（第二位） | 0.2.2 → 0.3.0 |
+| 第一个稳定版 | Major（第一位） | 0.2.2 → 1.0.0 |
 
 ```bash
-# package.json "version": "0.2.0" → "0.2.1"
-# server.json 顶层 "version": "0.2.0" → "0.2.1"
-# server.json packages[0].version: "0.2.0" → "0.2.1"
+# package.json "version" → 新版本号
+# server.json 顶层 "version" → 新版本号
+# server.json packages[0].version → 新版本号
 ```
 
 > ⚠️ **版本号改完后，必须检查以下 URL 字段是否正确：**
@@ -127,6 +129,52 @@ git ls-remote --tags origin | grep v0.2.1
 
 > ⚠️ **`git push` 只推分支，不推 tag。** 忘记 `git push origin v0.2.1` 会导致 GitHub Release 找不到对应的 tag。
 > 如果 `gh release create` 在 Step 7 已自动创建了 tag，这一步的 `git tag` 和 `git push origin` 可跳过，但必须用 `git ls-remote` 确认远程 tag 存在。
+
+---
+
+## Commit Message Style
+
+普通提交遵循以下风格（参考 `0782748`）：
+
+### Subject
+
+- 纯中文，不加前缀（不用 `feat:`、`fix:`、`v0.2.3:` 等）。
+- 简洁描述本次改动做了什么，不加句号。
+- 示例：`完善 Claude Code Bash 回退与 README 说明`
+
+### Body
+
+按功能领域分节，每节一个中文标题，标题下用 `- ` 开头的要点列表：
+
+```
+<领域标题>
+
+- <动词><具体内容>，<目的/原因>。
+- <动词><具体内容>，<目的/原因>。
+
+<另一个领域标题>
+
+- ...
+```
+
+- 每个要点是一句完整的中文，以 `。` 结尾。
+- 节与节之间用空行分隔。
+- 标题与第一个要点之间不加空行。
+
+### 验证
+
+最后一节固定为「验证」，列出实际执行的验证命令：
+
+```
+验证
+
+- npm.cmd run build
+- npm.cmd test
+```
+
+### 版本发布提交
+
+版本发布提交（Step 9）使用简化格式：`v0.2.1：<变更摘要>`，不加 body。
 
 ---
 
