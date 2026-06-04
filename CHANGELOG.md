@@ -4,10 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.3] - 2026-06-04
 
+### Fixed
+- 修复 Windows 下可见终端 shell 不一致问题：创建终端时显式传入 shellPath，统一 shell 解析逻辑
+
 ### Changed
+- CLAUDE.md 新增发布流程规则（URL 字段检查、VSIX 资产验证、tag 推送等）
 - CLAUDE.md 新增 Commit Message Style 规则，规范提交说明格式
 - CLAUDE.md 新增版本号递增规则（semver）
 - CLAUDE.md 删除无实际作用的项目标题和简介
+- 修复 package.json 和 server.json 仓库地址及 homepage 字段错误
 
 ## [0.2.2] - 2026-06-04
 

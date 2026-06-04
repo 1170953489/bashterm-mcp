@@ -109,12 +109,20 @@ gh release create v0.2.1 \
 
 > 备选：配置 Azure DevOps PAT 后可用 `npx vsce publish` 一键发布。
 
-### 9. 打标签、提交和推送
+### 9. 提交、打标签和推送
+
+**写摘要之前，必须先用以下命令回顾本版本所有改动：**
+
+```bash
+git log <上一个版本tag>..HEAD --oneline   # 例如 git log v0.2.1..HEAD --oneline
+```
+
+> ⚠️ **CHANGELOG 和 release commit 摘要必须覆盖 `git log` 列出的每一个非发布提交。** 不能只看最近一两个提交，漏掉中间的改动。
 
 ```bash
 # 1. 提交所有变更
 git add -A
-git commit -m "v0.2.1：<变更摘要>"
+git commit -m "v0.2.1：<变更摘要，涵盖上一版本至今所有非发布提交>"
 
 # 2. 在对应的 release commit 上打 tag
 git tag v0.2.1
@@ -133,6 +141,13 @@ git ls-remote --tags origin | grep v0.2.1
 ---
 
 ## Commit Message Style
+
+> ⚠️ **禁止使用 `git commit -m "多行文本"`**：Windows cmd.exe 下 `-m` 参数中的换行符会被截断，正文全部丢失。
+> 必须先把提交说明写入临时文件，再用 `-F` 读取：
+> ```bash
+> # 用 Write 工具写好 %TEMP%\commit-msg.txt，然后：
+> git commit -F %TEMP%\commit-msg.txt
+> ```
 
 普通提交遵循以下风格（参考 `0782748`）：
 
