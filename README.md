@@ -295,22 +295,15 @@ This commonly happens with commands that produce heavy TUI output (progress bars
 3. Commands execute via `child_process.exec()` for reliable cross-platform output capture and exit code detection
 4. Output is stored in circular buffers with pagination support for efficient reading
 
-## Latest Changes (0.1.8)
+## Latest Changes (0.2.0)
 
-- **Renamed to bashterm-mcp**: All references updated from vscode-terminal-mcp
-- **Fixed bin path**: Corrected the npm binary entry point
-- **Dynamic version icon**: badges now reflect the actual version
-- Updated Chinese README with version badges
-
-### Previous (0.1.6)
-
-- Screenshots in README for marketplace
-- Clean output format for all tools — no more raw JSON
-- Fixed `waitForCompletion: false` not working
-- Disabled idle reaper — user closes sessions manually
-- Unique IPC socket per workspace (multi-instance support)
-- Custom terminal tab names with date format
-- Large output handling documentation
+- **Command allowlist**: New `allowedCommands` config to restrict which commands can run
+- **Session idle reaper**: Auto-close inactive terminals after 5 minutes (configurable, disable with `0`)
+- **Bug fixes**: Fixed duplicate output from Shell Integration + exec, negative buffer index, notification memory leak
+- **Performance**: Batch buffer eviction replaces per-line shift (O(n×m) → O(n+m))
+- **Better session reuse**: Now matches `env` and `shell` config when reusing terminals
+- **Shell-ready detection**: Replaces hardcoded 500ms delay with proper detection + 2s fallback
+- **Code cleanup**: Enabled CommandGuard, extracted shared formatting, dynamic version reading from package.json
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 

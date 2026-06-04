@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-06-04
+
+### Added
+- 命令白名单支持（`terminalMcp.allowedCommands` 配置）
+- 终端就绪检测 `whenReady()`：基于 Shell Integration 信号 + 2s fallback
+- 会话复用时匹配 `env` 和 `shell` 配置，避免环境冲突
+- `cleanOutput()` / `stripCommandEcho()` ANSI 清洗工具函数，使用 `strip-ansi` 库
+
+### Fixed
+- 环形缓冲区 `lastReadIndex` 多次溢出后变为负数导致读取死循环
+- Shell Integration 与 `child_process.exec()` 同时写入缓冲区导致输出重复
+- JSON-RPC 通知被分配 ID 后泄漏在 `pendingRequests` 中
+- `validateCommand()` 不支持白名单模式（现已通过 `CommandGuard` 支持）
+
+### Changed
+- **启用空闲会话回收器**：默认 5 分钟无活动自动关闭（可通过 `idleTimeoutMs: 0` 禁用）
+- **启用 `CommandGuard`**：统一命令验证逻辑，替代 `SessionManager` 内联方法
+- **批量 splice 替代逐行 `shift()`**：缓冲区写入性能 O(n×m) → O(n+m)
+- **版本号动态读取**：`serverInfo.version` 不再硬编码，从 `package.json` 获取
+- **启动时不再弹出输出面板**：OutputChannel 保持在后台
+- **提取共享格式化逻辑**：`exec` 和 `run` 的 ANSI 清洗/状态行合并为 `formatExecuteResult()`
+- 升级 `server.json` 版本号与 `package.json` 对齐
+
+## [0.1.8] - 2026-06-03
+
+### Changed
+- 仓库/包名从 vscode-terminal-mcp 改为 bashterm-mcp，同步更新所有引用
+- VSIX 徽章改为动态版本号
+- 图标改为动态版本
+
+### Fixed
+- 修复 npm 二进制入口路径（`bin` 字段）
+
 ## [0.1.7] - 2026-05-29
 
 ### Added
