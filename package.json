@@ -33,7 +33,9 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:bashterm-mcp-server.restoreClaudeCodeDefaultBash"
+    "onCommand:bashterm-mcp-server.restoreClaudeCodeDefaultBash",
+    "onCommand:bashterm-mcp-server.enableClaudeCodeHook",
+    "onCommand:bashterm-mcp-server.showDiagnostics"
   ],
   "main": "./dist/extension.js",
   "bin": {
@@ -44,6 +46,14 @@
       {
         "command": "bashterm-mcp-server.restoreClaudeCodeDefaultBash",
         "title": "BashTerm MCP: Restore Claude Code Default Bash"
+      },
+      {
+        "command": "bashterm-mcp-server.enableClaudeCodeHook",
+        "title": "BashTerm MCP: Enable Claude Code Hook"
+      },
+      {
+        "command": "bashterm-mcp-server.showDiagnostics",
+        "title": "BashTerm MCP: Show Diagnostics"
       }
     ],
     "mcpServers": {

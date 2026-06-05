@@ -9,33 +9,31 @@
  */
 
 import * as net from "net";
-import * as path from "path";
-import * as os from "os";
+import { selectDiscoveryEntry } from "./utils/discovery.js";
 
-import * as fs from "fs";
-
-function getSocketPath(): string {
-  const tmpDir = os.tmpdir();
-  // Read the discovery file written by the extension to find the correct socket
-  const discoveryPath = path.join(tmpDir, "bashterm-mcp.discovery");
-  try {
-    const socketPath = fs.readFileSync(discoveryPath, "utf8").trim();
-    if (socketPath && (process.platform === "win32" || fs.existsSync(socketPath))) {
-      return socketPath;
-    }
-  } catch {
-    // Fall through to default
-  }
-  // Fallback to platform-appropriate path
-  const isWin = process.platform === "win32";
-  return isWin
-    ? path.join("\\\\?\\pipe", "bashterm-mcp-default")
-    : path.join(tmpDir, "bashterm-mcp.sock");
-}
-
-const SOCKET_PATH = getSocketPath();
+const DISCOVERY_SELECTION = selectDiscoveryEntry();
+const SOCKET_PATH = DISCOVERY_SELECTION.socketPath;
 const RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_ATTEMPTS = 30;
+
+if (process.argv.includes("--status") || process.argv.includes("--diagnose")) {
+  process.stdout.write(
+    JSON.stringify(
+      {
+        ok: DISCOVERY_SELECTION.source !== "fallback",
+        platform: process.platform,
+        pid: process.pid,
+        cwd: process.cwd(),
+        node: process.execPath,
+        socketPath: SOCKET_PATH,
+        discovery: DISCOVERY_SELECTION,
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  process.exit(0);
+}
 
 interface JsonRpcMessage {
   jsonrpc: "2.0";
@@ -80,7 +78,7 @@ class StdioToIpcBridge {
 
           if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             const errorMsg = `Failed to connect to extension host after ${MAX_RECONNECT_ATTEMPTS} attempts: ${err.message}`;
-            process.stdout.write(errorMsg + "\n");
+            process.stderr.write(errorMsg + "\n");
             reject(new Error(errorMsg));
             return;
           }
@@ -110,7 +108,7 @@ class StdioToIpcBridge {
           const ipcResponse = JSON.parse(messageStr);
           this.handleIpcResponse(ipcResponse);
         } catch {
-          process.stdout.write(
+          process.stderr.write(
             `Failed to parse IPC response: ${messageStr}\n`,
           );
         }
@@ -127,7 +125,7 @@ class StdioToIpcBridge {
     });
 
     this.socket.on("error", (err) => {
-      process.stdout.write(`IPC socket error: ${err.message}\n`);
+      process.stderr.write(`IPC socket error: ${err.message}\n`);
     });
   }
 
@@ -257,6 +255,6 @@ class StdioToIpcBridge {
 // Start the bridge
 const bridge = new StdioToIpcBridge();
 bridge.start().catch((err) => {
-  process.stdout.write(`Fatal: ${err.message}\n`);
+  process.stderr.write(`Fatal: ${err.message}\n`);
   process.exit(1);
 });

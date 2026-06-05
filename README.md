@@ -31,9 +31,12 @@ BashTerm MCP can write a user-level PreToolUse hook to `~/.claude/settings.json`
 
 You stay in control:
 
-- Turn it off with `bashterm-mcp-server.autoConfigureClaudeCode`.
+- Enable the hook with `BashTerm MCP: Enable Claude Code Hook` from the Command Palette.
+- Turn automatic hook configuration off with `bashterm-mcp-server.autoConfigureClaudeCode`.
 - Restore default Bash with `BashTerm MCP: Restore Claude Code Default Bash` from the Command Palette.
-- Disable or uninstall the extension safely: it removes its own Claude Code hook during deactivation.
+- Run `BashTerm MCP: Show Diagnostics` to inspect the active socket, discovery registry, Node path, workspace, and selected MCP bridge target.
+
+If you restore the default Bash behavior and want it to stay restored after VSCode restarts, also set `bashterm-mcp-server.autoConfigureClaudeCode` to `false`.
 
 ## Screenshots
 
@@ -104,6 +107,24 @@ Configure BashTerm MCP from VSCode settings under `bashterm-mcp-server.*`.
 | `bashterm-mcp-server.idleTimeoutMs` | number | `300000` | Auto-close idle sessions after this many milliseconds. `0` disables it. |
 | `bashterm-mcp-server.windowsDefaultShell` | string | `"vscode"` | Default shell for Windows when no shell is explicitly requested. Options: `vscode`, `cmd`, `powershell`, `pwsh`. |
 | `bashterm-mcp-server.windowsShellDetection` | boolean | `true` | Automatically route high-confidence Windows commands to cmd or PowerShell for the `run` tool. |
+
+## Commands
+
+Run these from the VSCode Command Palette:
+
+| Command | What it does |
+|---------|--------------|
+| `BashTerm MCP: Enable Claude Code Hook` | Enables `autoConfigureClaudeCode`, writes the Claude Code PreToolUse hook, and asks you to restart Claude Code. |
+| `BashTerm MCP: Restore Claude Code Default Bash` | Removes the BashTerm MCP Claude Code hook from `~/.claude/settings.json`. |
+| `BashTerm MCP: Show Diagnostics` | Opens the BashTerm MCP output panel with platform, Node, workspace, socket, discovery registry, and selected MCP bridge details. |
+
+For CLI-level troubleshooting, run the MCP bridge directly:
+
+```bash
+node /path/to/extension/dist/mcp-entry.js --status
+```
+
+The status output is JSON and shows whether the bridge found a registered VSCode extension socket or fell back because no usable discovery entry was available.
 
 ## Requirements
 

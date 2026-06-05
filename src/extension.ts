@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import * as net from "net";
-import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import { version as pkgVersion } from "../package.json";
 import { initLogger, log, logError, disposeLogger } from "./utils/logger.js";
 import { createMcpRequestHandler } from "./mcp/server.js";
 import { SessionManager } from "./terminal/session-manager.js";
@@ -11,39 +11,53 @@ import {
   configureClaudeCode,
   restoreClaudeCode,
 } from "./integrations/claude-code/index.js";
+import {
+  createDiscoveryEntry,
+  getSocketPathForWorkspace,
+  publishDiscoveryEntry,
+  readDiscoveryRegistry,
+  removeDiscoveryEntry,
+  selectDiscoveryEntry,
+  type DiscoveryEntry,
+} from "./utils/discovery.js";
 
 let ipcServer: net.Server | undefined;
 let sessionManager: SessionManager | undefined;
 let statusBarItem: vscode.StatusBarItem | undefined;
+let discoveryEntry: DiscoveryEntry | undefined;
 
-function getSocketPath(): string {
-  const tmpDir = os.tmpdir();
-  // Use a hash based on the workspace to make the socket unique per VSCode window
-  const crypto = require("crypto");
-  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
-  const hash = crypto
-    .createHash("md5")
-    .update(workspace)
-    .digest("hex")
-    .slice(0, 8);
-  const isWin = process.platform === "win32";
-  const socketPath = isWin
-    ? path.join("\\\\?\\pipe", `bashterm-mcp-${hash}`)
-    : path.join(tmpDir, `bashterm-mcp-${hash}.sock`);
-  return socketPath;
+function getWorkspacePath(): string {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 }
 
-function publishSocketPath(socketPath: string): void {
-  // Write the socket path to a well-known discovery file so mcp-entry.ts can find it
-  const discoveryPath = path.join(os.tmpdir(), "bashterm-mcp.discovery");
+function getSocketPath(): string {
+  return getSocketPathForWorkspace(getWorkspacePath());
+}
+
+function publishSocketPath(socketPath: string): DiscoveryEntry | undefined {
   try {
-    fs.writeFileSync(discoveryPath, socketPath);
-  } catch {
-    // Ignore write errors
+    const entry = createDiscoveryEntry({
+      socketPath,
+      workspacePath: getWorkspacePath(),
+      extensionVersion: pkgVersion,
+    });
+    publishDiscoveryEntry(entry);
+    return entry;
+  } catch (err) {
+    logError("Failed to publish discovery entry", err);
+    return undefined;
   }
 }
 
-function cleanupSocket(socketPath: string): void {
+function cleanupSocket(socketPath: string, entry?: DiscoveryEntry): void {
+  if (entry) {
+    try {
+      removeDiscoveryEntry(entry.id);
+    } catch {
+      // Ignore discovery cleanup errors.
+    }
+  }
+
   if (process.platform === "win32") return;
   try {
     if (fs.existsSync(socketPath)) {
@@ -110,6 +124,44 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "bashterm-mcp-server.enableClaudeCodeHook",
+      async () => {
+        await vscode.workspace
+          .getConfiguration("bashterm-mcp-server")
+          .update(
+            "autoConfigureClaudeCode",
+            true,
+            vscode.ConfigurationTarget.Global,
+          );
+        const result = configureClaudeCode();
+        if (result.status === "error") {
+          logError("Failed to enable Claude Code hook", result.error);
+          void vscode.window.showErrorMessage(
+            `Failed to enable Claude Code hook: ${result.error ?? "unknown error"}`,
+          );
+          return;
+        }
+
+        const message =
+          result.status === "unchanged"
+            ? "Claude Code hook is already enabled. Restart Claude Code if it is currently running."
+            : "Claude Code hook enabled. Restart Claude Code to apply the change.";
+        void vscode.window.showInformationMessage(message);
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "bashterm-mcp-server.showDiagnostics",
+      () => {
+        showDiagnostics(getSocketPath(), discoveryEntry);
+      },
+    ),
+  );
+
   // Initialize session manager
   sessionManager = new SessionManager();
 
@@ -136,7 +188,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Setup IPC server
   const socketPath = getSocketPath();
-  publishSocketPath(socketPath);
+  discoveryEntry = publishSocketPath(socketPath);
   cleanupSocket(socketPath);
 
   ipcServer = net.createServer((connection) => {
@@ -189,7 +241,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // Cleanup on extension deactivation
   context.subscriptions.push({
     dispose: () => {
-      cleanupSocket(socketPath);
+      cleanupSocket(socketPath, discoveryEntry);
+      discoveryEntry = undefined;
     },
   });
 
@@ -236,10 +289,51 @@ export function deactivate(): void {
   }
 
   const socketPath = getSocketPath();
-  cleanupSocket(socketPath);
+  cleanupSocket(socketPath, discoveryEntry);
+  discoveryEntry = undefined;
 
   sessionManager?.dispose();
   sessionManager = undefined;
 
   disposeLogger();
+}
+
+function showDiagnostics(
+  socketPath: string,
+  entry: DiscoveryEntry | undefined,
+): void {
+  const output = initLogger();
+  const registry = readDiscoveryRegistry();
+  const selection = selectDiscoveryEntry({
+    cwd: getWorkspacePath(),
+  });
+  const config = vscode.workspace.getConfiguration("bashterm-mcp-server");
+  const lines = [
+    "=== BashTerm MCP Diagnostics ===",
+    `version: ${pkgVersion}`,
+    `platform: ${process.platform}`,
+    `process.pid: ${process.pid}`,
+    `node: ${process.execPath}`,
+    `tmpDir: ${os.tmpdir()}`,
+    `workspace: ${getWorkspacePath()}`,
+    `socketPath: ${socketPath}`,
+    `socketExists: ${process.platform === "win32" ? "named-pipe" : fs.existsSync(socketPath)}`,
+    `activeDiscoveryEntry: ${entry ? entry.id : "none"}`,
+    `registryPath: ${selection.registryPath}`,
+    `registryEntries: ${registry.entries.length}`,
+    `validRegistryEntries: ${selection.validEntries.length}`,
+    `selectedSource: ${selection.source}`,
+    `selectedSocket: ${selection.socketPath}`,
+    `selectedReason: ${selection.reason}`,
+    `autoConfigureClaudeCode: ${config.get<boolean>("autoConfigureClaudeCode", true)}`,
+  ];
+
+  for (const registryEntry of registry.entries) {
+    lines.push(
+      `entry: id=${registryEntry.id} workspace=${registryEntry.workspacePath} socket=${registryEntry.socketPath} platform=${registryEntry.platform} pid=${registryEntry.pid} updatedAt=${new Date(registryEntry.updatedAt).toISOString()}`,
+    );
+  }
+
+  output.appendLine(lines.join("\n"));
+  output.show(true);
 }

@@ -186,7 +186,7 @@ git ls-remote --tags origin | grep v0.2.1
 
 ---
 
-## 扩展缓存绕过
+## 开发调试方法
 
 VSCode 会积极缓存扩展文件。本地开发时：
 
