@@ -1,12 +1,11 @@
-import { describe, it, expect, afterEach } from "vitest";
+import * as path from "path";
+import { afterEach, describe, expect, it } from "vitest";
+import { isCmdShell, resolvePowerShellPath } from "../../src/utils/shell.js";
 import {
-  detectWindowsShellKind,
-  isCmdShell,
-  resolveDefaultShell,
-  resolveShell,
-  resolveShellPlan,
-  resolveShellWithMetadata,
-} from "../../src/utils/shell.js";
+  analyzeWindowsCommandSyntax,
+  planWindowsCommand,
+  resolveWindowsShell,
+} from "../../src/utils/windows-command-planner.js";
 
 const originalComspec = process.env.COMSPEC;
 const originalSystemRoot = process.env.SystemRoot;
@@ -24,48 +23,8 @@ function restoreEnv(name: string, value: string | undefined): void {
   }
 }
 
-describe("shell utilities", () => {
-  it("returns undefined as the default shell outside Windows", () => {
-    expect(resolveDefaultShell("linux")).toBeUndefined();
-    expect(resolveDefaultShell("darwin")).toBeUndefined();
-  });
-
-  it("uses VSCode default profile on Windows by default", () => {
-    expect(resolveDefaultShell("win32")).toBeUndefined();
-  });
-
-  it("uses COMSPEC when Windows default shell is cmd", () => {
-    process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
-
-    expect(resolveDefaultShell("win32", "cmd")).toBe(
-      "C:\\Windows\\System32\\cmd.exe",
-    );
-  });
-
-  it("falls back to SystemRoot cmd.exe when COMSPEC is missing", () => {
-    delete process.env.COMSPEC;
-    process.env.SystemRoot = "D:\\Windows";
-
-    expect(resolveDefaultShell("win32", "cmd")).toBe(
-      "D:\\Windows\\System32\\cmd.exe",
-    );
-  });
-
-  it("keeps caller-provided shells unchanged", () => {
-    expect(resolveShell("/bin/zsh")).toBe("/bin/zsh");
-  });
-
-  it("normalizes Windows shell aliases", () => {
-    process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
-
-    expect(resolveShell("cmd", { platform: "win32" })).toBe(
-      "C:\\Windows\\System32\\cmd.exe",
-    );
-    expect(resolveShell("vscode", { platform: "win32" })).toBeUndefined();
-    expect(resolveShell("pwsh", { platform: "win32" })).toBe("pwsh.exe");
-  });
-
-  it("detects cmd.exe shell paths", () => {
+describe("Windows V2 command planner", () => {
+  it("detects cmd shell paths", () => {
     expect(isCmdShell("C:\\Windows\\System32\\cmd.exe")).toBe(true);
     expect(isCmdShell("cmd")).toBe(true);
     expect(
@@ -75,116 +34,121 @@ describe("shell utilities", () => {
     ).toBe(false);
   });
 
-  it("detects high-confidence cmd commands", () => {
-    const detection = detectWindowsShellKind("set FOO=bar\r\necho %FOO%");
+  it("defaults ordinary commands to cmd", () => {
+    process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
 
-    expect(detection.kind).toBe("cmd");
-    expect(detection.confidence).toBe("high");
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: "git status",
+    });
+
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.shellPath).toBe("C:\\Windows\\System32\\cmd.exe");
+    expect(plan.executionMode).toBe("script");
+    expect(plan.captureMode).toBe("cmdExitFile");
+    expect(plan.command).toBe("git status");
   });
 
-  it("detects high-confidence PowerShell commands", () => {
-    const detection = detectWindowsShellKind(
-      'Get-ChildItem | Where-Object { $_.Name -like "*.ts" }',
+  it("plans npm test as cmd instead of VSCode default", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: "npm test",
+    });
+
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.reason).toContain("default cmd");
+  });
+
+  it("rewrites leading cd with command chaining into cwd plus command", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: "cd C:/repo && git diff --stat",
+    });
+
+    expect(plan.cwd).toBe(path.resolve("C:/repo"));
+    expect(plan.command).toBe("git diff --stat");
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.reason).toContain("rewrote leading cd");
+  });
+
+  it("resolves relative leading cd against the requested cwd", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      cwd: "C:/repo",
+      command: "cd packages/app && npm test",
+    });
+
+    expect(plan.cwd).toBe(path.resolve("C:/repo/packages/app"));
+    expect(plan.command).toBe("npm test");
+  });
+
+  it("rewrites multiline leading cd into cwd plus remaining command", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: "cd C:/repo\r\nnpm install\r\nnpm test",
+    });
+
+    expect(plan.cwd).toBe(path.resolve("C:/repo"));
+    expect(plan.command).toBe("npm install\nnpm test");
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.executionMode).toBe("script");
+  });
+
+  it("plans PowerShell syntax as PowerShell script capture", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: 'Get-ChildItem | Where-Object { $_.Name -like "*.ts" }',
+    });
+
+    expect(plan.shellKind).toBe("powershell");
+    expect(plan.shellPath).toBe(resolvePowerShellPath("powershell"));
+    expect(plan.captureMode).toBe("powershellExitFile");
+  });
+
+  it("honors explicit pwsh shell", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      shell: "pwsh",
+      command: "git status",
+    });
+
+    expect(plan.shellKind).toBe("pwsh");
+    expect(plan.shellPath).toBe("pwsh.exe");
+    expect(plan.captureMode).toBe("powershellExitFile");
+  });
+
+  it("uses fire-and-forget capture for non-waiting commands", () => {
+    const plan = planWindowsCommand({
+      platform: "win32",
+      command: "npm run dev",
+      waitForCompletion: false,
+    });
+
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.executionMode).toBe("raw");
+    expect(plan.captureMode).toBe("fireAndForget");
+  });
+
+  it("returns syntax conflict for mixed cmd and PowerShell syntax", () => {
+    const syntax = analyzeWindowsCommandSyntax(
+      "echo %PATH% | Where-Object { $_ }",
     );
 
-    expect(detection.kind).toBe("powershell");
-    expect(detection.confidence).toBe("high");
+    expect(syntax.kind).toBe("conflict");
+    expect(() =>
+      planWindowsCommand({
+        platform: "win32",
+        command: "echo %PATH% | Where-Object { $_ }",
+      }),
+    ).toThrow(/Conflicting Windows shell syntax/);
   });
 
-  it("leaves ambiguous commands unknown", () => {
-    const detection = detectWindowsShellKind("npm test");
-
-    expect(detection.kind).toBe("unknown");
-    expect(detection.confidence).toBe("low");
-  });
-
-  it("routes high-confidence Windows commands before default shell", () => {
+  it("creates cmd shell by default on Windows", () => {
     process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
 
-    const cmd = resolveShellWithMetadata(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "dir /s /b",
+    expect(resolveWindowsShell()).toEqual({
+      shellKind: "cmd",
+      shellPath: "C:\\Windows\\System32\\cmd.exe",
     });
-    const powershell = resolveShellWithMetadata(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "Write-Output $env:Path",
-    });
-    const ambiguous = resolveShellWithMetadata(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "npm test",
-    });
-
-    expect(cmd.source).toBe("detected");
-    expect(cmd.shell).toBe("C:\\Windows\\System32\\cmd.exe");
-    expect(powershell.source).toBe("detected");
-    expect(powershell.shell).toContain("powershell.exe");
-    expect(ambiguous.source).toBe("default");
-    expect(ambiguous.shell).toBeUndefined();
-  });
-
-  it("honors explicit shell before detection", () => {
-    const resolved = resolveShellWithMetadata("pwsh", {
-      platform: "win32",
-      command: "dir /s /b",
-    });
-
-    expect(resolved.source).toBe("explicit");
-    expect(resolved.shell).toBe("pwsh.exe");
-  });
-
-  it("builds cmd shell plans with exit-code file capture", () => {
-    process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
-
-    const plan = resolveShellPlan(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "set FOO=bar\r\necho %FOO%",
-    });
-
-    expect(plan.source).toBe("detected");
-    expect(plan.shellKind).toBe("cmd");
-    expect(plan.shell).toBe("C:\\Windows\\System32\\cmd.exe");
-    expect(plan.captureMode).toBe("cmdExitFile");
-    expect(plan.reason).toContain("detected cmd");
-  });
-
-  it("builds PowerShell shell plans with shell integration capture", () => {
-    const plan = resolveShellPlan(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "Write-Output $env:Path",
-    });
-
-    expect(plan.source).toBe("detected");
-    expect(plan.shellKind).toBe("powershell");
-    expect(plan.captureMode).toBe("shellIntegration");
-    expect(plan.reason).toContain("detected powershell");
-  });
-
-  it("keeps ambiguous Windows commands on the configured default shell", () => {
-    const plan = resolveShellPlan(undefined, {
-      platform: "win32",
-      windowsDefaultShell: "vscode",
-      command: "npm test",
-    });
-
-    expect(plan.source).toBe("default");
-    expect(plan.shellKind).toBe("vscode");
-    expect(plan.shell).toBeUndefined();
-    expect(plan.captureMode).toBe("shellIntegration");
-  });
-
-  it("uses explicit shell in shell plans before command detection", () => {
-    const plan = resolveShellPlan("cmd", {
-      platform: "win32",
-      command: "Write-Output $env:Path",
-    });
-
-    expect(plan.source).toBe("explicit");
-    expect(plan.shellKind).toBe("cmd");
-    expect(plan.captureMode).toBe("cmdExitFile");
   });
 });

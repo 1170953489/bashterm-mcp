@@ -9,13 +9,37 @@ export async function handleTerminalRun(
 ): Promise<McpToolResponse> {
   const input = terminalRunSchema.parse(params);
 
-  // Resolve shell from explicit input, high-confidence Windows command
-  // detection, or the configured default shell.
-  const shellPlan = sessionManager.resolveShellPlan(
-    input.shell,
-    input.command,
-  );
-  const shell = shellPlan.shell;
+  let command = input.command;
+  let cwd = input.cwd;
+  let shell: string | undefined;
+  let shellKind: "cmd" | "powershell" | "pwsh" | "vscode" | undefined;
+
+  if (process.platform === "win32") {
+    try {
+      const plan = sessionManager.planWindowsRun({
+        command: input.command,
+        cwd: input.cwd,
+        shell: input.shell,
+        waitForCompletion: input.waitForCompletion,
+      });
+      command = plan.command;
+      cwd = plan.cwd;
+      shell = plan.shellPath;
+      shellKind = plan.shellKind;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return {
+        content: [
+          { type: "text", text: `Windows command planner error: ${errorMsg}` },
+        ],
+        isError: true,
+      };
+    }
+  } else {
+    const resolved = sessionManager.resolveCreateShell(input.shell);
+    shell = resolved.shell;
+    shellKind = resolved.shellKind;
+  }
 
   // Try to reuse an existing session matching cwd, agentId, env, and shell
   let sessionId: string | undefined;
@@ -23,8 +47,9 @@ export async function handleTerminalRun(
   const existing = sessionManager.listSessions(input.agentId);
   for (const s of existing) {
     if (!s.isActive) continue;
-    if (input.cwd && s.cwd !== input.cwd) continue;
+    if (cwd && s.cwd !== cwd) continue;
     if (s.shell !== shell) continue;
+    if (s.shellKind !== shellKind) continue;
     // Only reuse if env configuration matches (request without env can reuse any)
     if (input.env && !envsEqual(input.env, s.env)) continue;
     const session = sessionManager.getSession(s.sessionId);
@@ -44,9 +69,10 @@ export async function handleTerminalRun(
           const pad = (n: number) => String(n).padStart(2, "0");
           return `BashTerm-${pad(d.getFullYear() % 100)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}-${pad(d.getMinutes())}`;
         })(),
-      cwd: input.cwd,
+      cwd,
       env: input.env,
       shell,
+      shellKind,
       agentId: input.agentId,
     });
     sessionId = sessionInfo.sessionId;
@@ -66,15 +92,16 @@ export async function handleTerminalRun(
     // Wait for the shell to be ready before sending the first command.
     // Shell integration fires early; otherwise falls back to a 2-second timeout.
     await session.whenReady();
-    return executeCommand(sessionId, input, sessionManager);
+    return executeCommand(sessionId, command, input, sessionManager);
   }
 
-  return executeCommand(sessionId, input, sessionManager);
+  return executeCommand(sessionId, command, input, sessionManager);
 }
 
 async function executeCommand(
   sessionId: string,
-  input: { command: string; timeoutMs?: number; waitForCompletion?: boolean },
+  command: string,
+  input: { timeoutMs?: number; waitForCompletion?: boolean },
   sessionManager: SessionManager,
 ): Promise<McpToolResponse> {
   const session = sessionManager.getSession(sessionId);
@@ -87,7 +114,7 @@ async function executeCommand(
     };
   }
 
-  const validation = sessionManager.validateCommand(input.command);
+  const validation = sessionManager.validateCommand(command);
   if (!validation.valid) {
     return {
       content: [
@@ -100,15 +127,11 @@ async function executeCommand(
   const timeoutMs = input.timeoutMs ?? sessionManager.getDefaultTimeout();
   const waitForCompletion = input.waitForCompletion ?? true;
 
-  const result = await session.execute(
-    input.command,
-    timeoutMs,
-    waitForCompletion,
-  );
+  const result = await session.execute(command, timeoutMs, waitForCompletion);
 
   return formatExecuteResult(
     result.output,
-    input.command,
+    command,
     result.exitCode,
     result.timedOut,
     result.durationMs,

@@ -5,6 +5,7 @@ export interface TerminalSessionConfig {
   cwd?: string;
   env?: Record<string, string>;
   shell?: string;
+  shellKind?: "cmd" | "powershell" | "pwsh" | "vscode";
   agentId?: string;
 }
 
@@ -14,6 +15,7 @@ export interface TerminalSessionInfo {
   cwd: string;
   env?: Record<string, string>;
   shell?: string;
+  shellKind?: "cmd" | "powershell" | "pwsh" | "vscode";
   agentId?: string;
   isActive: boolean;
   createdAt: number;
@@ -105,8 +107,7 @@ export interface SecurityConfig {
   maxConcurrentSessions: number;
   maxOutputLines: number;
   idleTimeoutMs: number;
-  windowsDefaultShell: "vscode" | "cmd" | "powershell" | "pwsh";
-  windowsShellDetection: boolean;
+  windowsPreferredPowerShell: "powershell" | "pwsh";
 }
 
 /**

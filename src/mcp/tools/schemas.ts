@@ -18,7 +18,7 @@ export const terminalCreateSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Override shell (e.g., cmd, powershell, pwsh, /bin/zsh, /bin/bash)",
+      "Override shell. On Windows, omitted shell creates a cmd session.",
     ),
   agentId: z
     .string()
@@ -84,7 +84,7 @@ export const terminalRunSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Override shell (e.g., cmd, powershell, pwsh, /bin/zsh, /bin/bash)",
+      "Override shell. On Windows, run plans the command first and defaults ordinary commands to cmd.",
     ),
   agentId: z
     .string()

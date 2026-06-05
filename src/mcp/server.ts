@@ -31,28 +31,31 @@ interface ToolDefinition {
 }
 
 function toJsonSchema(schema: import("zod").ZodType): Record<string, unknown> {
-  return zodToJsonSchema(schema, { target: "openApi3" }) as Record<string, unknown>;
+  return zodToJsonSchema(schema, { target: "openApi3" }) as Record<
+    string,
+    unknown
+  >;
 }
 
 const TOOLS: ToolDefinition[] = [
   {
     name: "run",
     description:
-      "Create a new terminal and execute a command in one step. Combines create + exec for convenience.",
+      "Plan a command, create or reuse the matching visible terminal, and execute it. On Windows this is the recommended routed execution entrypoint.",
     inputSchema: toJsonSchema(terminalRunSchema),
     handler: handleTerminalRun,
   },
   {
     name: "create",
     description:
-      "Create a new visible terminal session in VSCode. Returns a sessionId for subsequent operations.",
+      "Create a new visible terminal session in VSCode. On Windows, omitted shell creates a cmd session.",
     inputSchema: toJsonSchema(terminalCreateSchema),
     handler: handleTerminalCreate,
   },
   {
     name: "exec",
     description:
-      "Execute a command in an existing terminal session and capture the output. The command runs visibly in the VSCode terminal tab.",
+      "Execute a command in an existing terminal session. On Windows this does not reroute shell-incompatible commands; use run for planning.",
     inputSchema: toJsonSchema(terminalExecuteSchema),
     handler: handleTerminalExecute,
   },
@@ -124,14 +127,12 @@ export function createMcpRequestHandler(
     // Handle tools/call
     if (method === "tools/call") {
       const { name, arguments: args } =
-        params as { name: string; arguments?: unknown } || {};
+        (params as { name: string; arguments?: unknown }) || {};
 
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) {
         return {
-          content: [
-            { type: "text", text: `Unknown tool: ${name}` },
-          ],
+          content: [{ type: "text", text: `Unknown tool: ${name}` }],
           isError: true,
         };
       }

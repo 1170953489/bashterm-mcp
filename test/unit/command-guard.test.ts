@@ -10,8 +10,7 @@ function createConfig(overrides: Partial<SecurityConfig> = {}): SecurityConfig {
     maxConcurrentSessions: 10,
     maxOutputLines: 10000,
     idleTimeoutMs: 300000,
-    windowsDefaultShell: "vscode",
-    windowsShellDetection: true,
+    windowsPreferredPowerShell: "powershell",
     ...overrides,
   };
 }

@@ -13,6 +13,7 @@ import { generateSessionId, generateCommandId } from "../utils/id-generator.js";
 import { log } from "../utils/logger.js";
 import { isCmdShell, resolveShell } from "../utils/shell.js";
 import { CmdScriptExecutor } from "./executors/cmd-script-executor.js";
+import { PowerShellScriptExecutor } from "./executors/powershell-script-executor.js";
 import { ShellIntegrationExecutor } from "./executors/shell-integration-executor.js";
 import type { TerminalExecutionResult } from "./executors/types.js";
 
@@ -22,6 +23,7 @@ export class TerminalSession {
   readonly cwd: string;
   readonly env?: Record<string, string>;
   readonly shell?: string;
+  readonly shellKind?: "cmd" | "powershell" | "pwsh" | "vscode";
   readonly agentId?: string;
   readonly createdAt: number;
 
@@ -33,6 +35,7 @@ export class TerminalSession {
   private shellReadyResolve!: () => void;
   private shellIntegrationExecutor: ShellIntegrationExecutor;
   private cmdScriptExecutor: CmdScriptExecutor;
+  private powershellScriptExecutor: PowerShellScriptExecutor | null = null;
 
   constructor(config: TerminalSessionConfig, maxOutputLines: number) {
     this.sessionId = generateSessionId();
@@ -42,7 +45,13 @@ export class TerminalSession {
       vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
       process.cwd();
     this.env = config.env;
+
+    // Resolve the shell path from the caller-provided name (or undefined
+    // for "VSCode default").  We never guess the OS-level shell here because
+    // vscode.env.shell always returns cmd.exe on Windows regardless of the
+    // user's VSCode terminal profile preference.
     this.shell = resolveShell(config.shell);
+    this.shellKind = config.shellKind;
     this.agentId = config.agentId;
     this.createdAt = Date.now();
     this.outputBuffer = createOutputBuffer(maxOutputLines);
@@ -86,6 +95,15 @@ export class TerminalSession {
       onActivity: () => this.markActivity(),
       isActive: () => this.isActive,
     });
+    if (this.shellKind === "powershell" || this.shellKind === "pwsh") {
+      this.powershellScriptExecutor = new PowerShellScriptExecutor({
+        terminal: this.terminal,
+        shellKind: this.shellKind,
+        outputBuffer: this.outputBuffer,
+        onActivity: () => this.markActivity(),
+        isActive: () => this.isActive,
+      });
+    }
 
     log(`Session ${this.sessionId} created: ${config.name} (cwd: ${this.cwd})`);
   }
@@ -121,8 +139,21 @@ export class TerminalSession {
       };
     }
 
-    if (isCmdShell(this.shell)) {
+    // cmd.exe: use file-based executor with PowerShell tee so output is
+    // visible in the terminal in real-time AND reliably captured to a file.
+    // Shell integration is not reliable enough for cmd on all VSCode versions.
+    if (process.platform === "win32" && this.shellKind === "cmd") {
       return this.cmdScriptExecutor.execute(command, timeoutMs);
+    }
+
+    // For PowerShell / pwsh — use file-based Tee-Object executor that shows
+    // output in real-time AND captures it reliably to a file.
+    if (
+      process.platform === "win32" &&
+      (this.shellKind === "powershell" || this.shellKind === "pwsh") &&
+      this.powershellScriptExecutor
+    ) {
+      return this.powershellScriptExecutor.execute(command, timeoutMs);
     }
 
     return this.shellIntegrationExecutor.execute(command, timeoutMs);
@@ -161,7 +192,9 @@ export class TerminalSession {
 
   get isBusy(): boolean {
     return (
-      this.shellIntegrationExecutor.isBusy || this.cmdScriptExecutor.isBusy
+      this.shellIntegrationExecutor.isBusy ||
+      this.cmdScriptExecutor.isBusy ||
+      Boolean(this.powershellScriptExecutor?.isBusy)
     );
   }
 
@@ -172,6 +205,7 @@ export class TerminalSession {
       cwd: this.cwd,
       env: this.env,
       shell: this.shell,
+      shellKind: this.shellKind,
       agentId: this.agentId,
       isActive: this.isActive,
       createdAt: this.createdAt,
@@ -194,6 +228,7 @@ export class TerminalSession {
     this.isActive = false;
     this.shellIntegrationExecutor.dispose();
     this.cmdScriptExecutor.dispose();
+    this.powershellScriptExecutor?.dispose();
     this.terminal.dispose();
     log(`Session ${this.sessionId} disposed`);
   }

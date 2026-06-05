@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import { TerminalSession } from "./session.js";
 import { CommandGuard } from "../security/command-guard.js";
 import {
-  resolveShellPlan,
-  type ShellPlan,
-} from "../utils/shell.js";
+  planWindowsCommand,
+  resolveWindowsShell,
+  type WindowsCommandPlan,
+} from "../utils/windows-command-planner.js";
+import { resolveShell } from "../utils/shell.js";
 import type {
   TerminalSessionConfig,
   TerminalSessionInfo,
@@ -56,21 +57,46 @@ export class SessionManager {
       maxConcurrentSessions: config.get<number>("maxConcurrentSessions", 10),
       maxOutputLines: config.get<number>("maxOutputLines", 10000),
       idleTimeoutMs: config.get<number>("idleTimeoutMs", 300000),
-      windowsDefaultShell: config.get<"vscode" | "cmd" | "powershell" | "pwsh">(
-        "windowsDefaultShell",
-        "vscode",
+      windowsPreferredPowerShell: config.get<"powershell" | "pwsh">(
+        "windowsPreferredPowerShell",
+        "powershell",
       ),
-      windowsShellDetection: config.get<boolean>("windowsShellDetection", true),
     };
   }
 
-  resolveShellPlan(shell?: string, command?: string): ShellPlan {
+  planWindowsRun(input: {
+    command: string;
+    cwd?: string;
+    shell?: string;
+    waitForCompletion?: boolean;
+  }): WindowsCommandPlan {
     const config = this.getConfig();
-    return resolveShellPlan(shell, {
-      command,
-      windowsDefaultShell: config.windowsDefaultShell,
-      enableWindowsShellDetection: config.windowsShellDetection,
+    return planWindowsCommand({
+      command: input.command,
+      cwd: input.cwd,
+      shell: input.shell,
+      waitForCompletion: input.waitForCompletion,
+      preferredPowerShell: config.windowsPreferredPowerShell,
     });
+  }
+
+  resolveCreateShell(shell?: string): {
+    shell?: string;
+    shellKind?: "cmd" | "powershell" | "pwsh" | "vscode";
+  } {
+    if (process.platform !== "win32") {
+      return { shell: resolveShell(shell) };
+    }
+
+    const config = this.getConfig();
+    const resolved = resolveWindowsShell(
+      shell,
+      config.windowsPreferredPowerShell,
+    );
+    return {
+      shell: resolved.shellPath,
+      shellKind: resolved.shellKind,
+    };
   }
 
   private startIdleReaper(): void {

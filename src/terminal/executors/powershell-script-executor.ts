@@ -3,53 +3,41 @@ import * as vscode from "vscode";
 import type { CommandExecution, OutputBuffer } from "../../types/index.js";
 import { generateCommandId } from "../../utils/id-generator.js";
 import {
-  buildCmdCaptureCommand,
-  createCmdCaptureFiles,
-  readCaptureFile,
-  writeCmdScript,
-  writeWrapperScript,
-  type CmdCaptureFiles,
-} from "../../utils/cmd-capture.js";
+  buildPowerShellCaptureCommand,
+  createPowerShellCaptureFiles,
+  readPowerShellCaptureFile,
+  writePowerShellScript,
+  writePowerShellWrapperScript,
+  type PowerShellCaptureFiles,
+} from "../../utils/powershell-capture.js";
 import type {
   TerminalCommandExecutor,
   TerminalExecutionResult,
 } from "./types.js";
 
-interface CmdScriptExecutorOptions {
+interface PowerShellScriptExecutorOptions {
   terminal: vscode.Terminal;
+  shellKind: "powershell" | "pwsh";
   outputBuffer: OutputBuffer;
   onActivity: () => void;
   isActive: () => boolean;
 }
 
 const CAPTURE_POLL_INTERVAL_MS = 100;
-const CMD_OUTPUT_FLUSH_DELAY_MS = 200;
+const POWERSHELL_OUTPUT_FLUSH_DELAY_MS = 200;
 
-/**
- * Executes commands in a cmd.exe terminal using file-based capture.
- *
- * This executor is fully self-sufficient — it does NOT depend on VSCode
- * shell integration.  A wrapper batch file is generated that:
- *
- * 1. Saves and switches the console code page to UTF-8
- * 2. Runs the user's commands, redirecting stdout+stderr to a capture file
- * 3. Persists the exit code to a second file
- * 4. Restores the original code page
- * 5. Types the captured output so it still renders in the VSCode terminal
- *
- * The executor polls for the exit-code file to appear and then reads
- * output from the capture file directly, bypassing shell integration.
- */
-export class CmdScriptExecutor implements TerminalCommandExecutor {
+export class PowerShellScriptExecutor implements TerminalCommandExecutor {
   private readonly terminal: vscode.Terminal;
+  private readonly shellKind: "powershell" | "pwsh";
   private readonly outputBuffer: OutputBuffer;
   private readonly onActivity: () => void;
   private readonly isActiveSession: () => boolean;
   private readonly commandHistory: CommandExecution[] = [];
   private currentCommand: CommandExecution | null = null;
 
-  constructor(options: CmdScriptExecutorOptions) {
+  constructor(options: PowerShellScriptExecutorOptions) {
     this.terminal = options.terminal;
+    this.shellKind = options.shellKind;
     this.outputBuffer = options.outputBuffer;
     this.onActivity = options.onActivity;
     this.isActiveSession = options.isActive;
@@ -76,15 +64,18 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
     };
     this.currentCommand = commandExecution;
 
-    const files = createCmdCaptureFiles();
-    writeCmdScript(files.commandPath, command);
-    writeWrapperScript(
+    const files = createPowerShellCaptureFiles();
+    writePowerShellScript(files.commandPath, command);
+    writePowerShellWrapperScript(
       files.wrapperPath,
       files.commandPath,
       files.outputPath,
       files.exitCodePath,
     );
-    const wrappedCommand = buildCmdCaptureCommand(files.wrapperPath);
+    const wrappedCommand = buildPowerShellCaptureCommand(
+      files.wrapperPath,
+      this.shellKind,
+    );
 
     this.terminal.show(true);
     this.terminal.sendText(wrappedCommand, true);
@@ -101,9 +92,7 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
       clearTimeout(timeoutHandle);
     }
 
-    // Give the wrapper a short grace period to flush the output file
-    // (type command may still be writing when the exit-code file appeared).
-    await delay(CMD_OUTPUT_FLUSH_DELAY_MS);
+    await delay(POWERSHELL_OUTPUT_FLUSH_DELAY_MS);
 
     if (timedOut) {
       void this.finalizeWhenReady(commandExecution, files);
@@ -118,7 +107,7 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
 
     const exitCode = this.readExitCode(files.exitCodePath);
     const output = this.readOutputFromFile(files);
-    this.finalize(commandExecution, files, exitCode, output);
+    this.finalize(commandExecution, files, exitCode);
 
     return {
       commandId,
@@ -135,21 +124,19 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
 
   private async finalizeWhenReady(
     commandExecution: CommandExecution,
-    files: CmdCaptureFiles,
+    files: PowerShellCaptureFiles,
   ): Promise<void> {
     await waitForFile(files.exitCodePath, () => !this.isActiveSession());
     if (!this.isActiveSession() || !fs.existsSync(files.exitCodePath)) return;
 
-    const output = this.readOutputFromFile(files);
     const exitCode = this.readExitCode(files.exitCodePath);
-    this.finalize(commandExecution, files, exitCode, output);
+    this.finalize(commandExecution, files, exitCode);
   }
 
   private finalize(
     commandExecution: CommandExecution,
-    files: CmdCaptureFiles,
+    files: PowerShellCaptureFiles,
     exitCode: number | null,
-    output: string,
   ): void {
     commandExecution.completedAt = Date.now();
     commandExecution.exitCode = exitCode ?? undefined;
@@ -167,25 +154,12 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
     }
   }
 
-  /**
-   * Read command output from the capture file.
-   *
-   * When shell integration is available the shared output buffer may also
-   * contain the output (because the "type" command triggers shell
-   * integration events).  We prefer the file because it is authoritative
-   * and works even without shell integration.
-   */
-  private readOutputFromFile(files: CmdCaptureFiles): string {
-    const raw = readCaptureFile(files.outputPath);
-    // cmd.exe "type" appends a trailing newline and the wrapper itself
-    // may leave an extra line.  Trim but preserve inner blank lines.
-    return raw.trim();
+  private readOutputFromFile(files: PowerShellCaptureFiles): string {
+    return readPowerShellCaptureFile(files.outputPath).trim();
   }
 
   private readExitCode(exitCodePath: string): number | null {
-    const exitCodeText = readCaptureFile(exitCodePath).trim();
-    // The file may contain leading/trailing whitespace or extra lines from
-    // command echo — extract the first integer found.
+    const exitCodeText = readPowerShellCaptureFile(exitCodePath).trim();
     const match = exitCodeText.match(/-?\d+/);
     if (!match) return null;
     const exitCode = Number.parseInt(match[0], 10);
