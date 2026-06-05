@@ -73,6 +73,27 @@ brew install node            # macOS Homebrew
 
 扩展会通过 `contributes.mcpServers` 自动注册 MCP server，`run`、`exec`、`read`、`input` 等工具无需手写 MCP JSON 配置即可使用。
 
+## 手动安装 MCP 服务器
+
+如果 Claude Code 没有自动发现 VSCode 扩展注册的 MCP server，或你希望手动添加，可以按下面的步骤配置。
+
+如果还没有安装 Claude Code CLI，先安装并验证：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude --version
+```
+
+然后添加 BashTerm MCP：
+
+```bash
+claude mcp add BashTerm -- npx bashterm-mcp-server@latest
+```
+
+请先安装 **BashTerm MCP** VSCode 扩展并保持 VSCode 打开。这个命令安装的是 MCP bridge，它会连接到 VSCode 扩展主机注册的本地 socket；如果扩展未运行，就无法创建和控制可见终端。
+
+添加完成后重启 Claude Code，即可看到 `BashTerm` MCP server。
+
 ## Claude Code 集成
 
 BashTerm MCP 可以向用户级 `~/.claude/settings.json` 写入 PreToolUse hook。这个 hook 会拦截 Claude Code 隐藏的内置 `Bash` 工具，并提示 Claude Code 改用 BashTerm MCP 工具，让命令执行保持在 VSCode 可见终端中。

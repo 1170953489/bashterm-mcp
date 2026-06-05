@@ -45,7 +45,7 @@ interface JsonRpcMessage {
 }
 
 interface PendingRequest {
-  resolve: (value: unknown) => void;
+  jsonRpcId: string | number;
   reject: (reason: unknown) => void;
 }
 
@@ -56,6 +56,7 @@ class StdioToIpcBridge {
   private stdinBuffer = "";
   private connected = false;
   private reconnectAttempts = 0;
+  private nextIpcRequestId = 0;
 
   async start(): Promise<void> {
     await this.connectToExtension();
@@ -146,7 +147,7 @@ class StdioToIpcBridge {
       // Build JSON-RPC error response
       const errorResponse: JsonRpcMessage = {
         jsonrpc: "2.0",
-        id: ipcResponse.id,
+        id: pending.jsonRpcId,
         error: ipcResponse.error,
       };
       this.writeStdout(errorResponse);
@@ -154,7 +155,7 @@ class StdioToIpcBridge {
       // Build JSON-RPC success response
       const successResponse: JsonRpcMessage = {
         jsonrpc: "2.0",
-        id: ipcResponse.id,
+        id: pending.jsonRpcId,
         result: ipcResponse.result,
       };
       this.writeStdout(successResponse);
@@ -197,6 +198,21 @@ class StdioToIpcBridge {
     // Forward them without tracking in pendingRequests to avoid leaks.
     const isNotification = message.id === undefined || message.id === null;
 
+    if (typeof message.method !== "string") {
+      if (!isNotification) {
+        const errorResponse: JsonRpcMessage = {
+          jsonrpc: "2.0",
+          id: message.id,
+          error: {
+            code: -32600,
+            message: "Invalid Request",
+          },
+        };
+        this.writeStdout(errorResponse);
+      }
+      return;
+    }
+
     if (!this.connected || !this.socket) {
       if (!isNotification) {
         const errorResponse: JsonRpcMessage = {
@@ -213,15 +229,18 @@ class StdioToIpcBridge {
     }
 
     // Forward to extension host via IPC
+    const ipcRequestId = isNotification
+      ? ""
+      : String(++this.nextIpcRequestId);
     const ipcRequest = {
-      id: String(message.id ?? ""),
+      id: ipcRequestId,
       method: message.method,
       params: message.params,
     };
 
     if (!isNotification) {
       this.pendingRequests.set(ipcRequest.id, {
-        resolve: () => {},
+        jsonRpcId: message.id,
         reject: (err) => {
           const errorResponse: JsonRpcMessage = {
             jsonrpc: "2.0",

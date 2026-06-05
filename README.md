@@ -73,6 +73,27 @@ brew install node            # macOS Homebrew
 
 The extension automatically registers the MCP server through `contributes.mcpServers`, so tools such as `run`, `exec`, `read`, and `input` are available without manual MCP JSON setup.
 
+## Manual MCP Server Setup
+
+If Claude Code does not automatically discover the MCP server registered by the VSCode extension, or you want to add it manually, follow these steps.
+
+If Claude Code CLI is not installed yet, install and verify it first:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude --version
+```
+
+Then add BashTerm MCP:
+
+```bash
+claude mcp add BashTerm -- npx bashterm-mcp-server@latest
+```
+
+Install the **BashTerm MCP** VSCode extension first and keep VSCode open. This command installs the MCP bridge, which connects to the local socket registered by the VSCode extension host; if the extension is not running, it cannot create or control visible terminals.
+
+Restart Claude Code after adding it, then the `BashTerm` MCP server should be available.
+
 ## Claude Code Integration
 
 BashTerm MCP can write a user-level PreToolUse hook to `~/.claude/settings.json`. That hook blocks Claude Code's built-in hidden `Bash` tool and tells Claude Code to use BashTerm MCP tools instead, keeping command execution visible inside VSCode.
