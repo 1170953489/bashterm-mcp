@@ -83,7 +83,28 @@ npm whoami                  # 确认已登录
 npm publish --access public
 ```
 
-### 7. 创建 GitHub Release 并上传 VSIX
+### 7. 提交和推送
+
+`gh release create` 会基于当前 HEAD 创建 tag，因此必须**先提交再发 Release**，否则 tag 指向旧 commit。
+
+**写摘要之前，必须先用以下命令回顾本版本所有改动：**
+
+```bash
+git log <上一个版本tag>..HEAD --oneline   # 例如 git log v0.2.1..HEAD --oneline
+```
+
+> ⚠️ **CHANGELOG 和 release commit 摘要必须覆盖 `git log` 列出的每一个非发布提交。** 不能只看最近一两个提交，漏掉中间的改动。
+
+```bash
+# 1. 提交所有变更
+git add -A
+git commit -m "v0.2.1：<变更摘要，涵盖上一版本至今所有非发布提交>"
+
+# 2. 推送 commit
+git push
+```
+
+### 8. 创建 GitHub Release 并上传 VSIX
 
 用 PowerShell 执行（避免 cmd 将 `>` 误解析为重定向）：
 
@@ -101,6 +122,8 @@ gh release create v0.2.1 `
   bashterm-mcp-server-0.2.1.vsix
 ```
 
+> `gh release create` 会自动创建 tag 并推送到远程，不需要手动 `git tag` / `git push origin v0.2.1`。
+>
 > ⚠️ **必须验证 VSIX 资产上传成功：**
 > ```powershell
 > gh release view v0.2.1 --json assets  # 确认 assets 数组非空，包含 .vsix 文件
@@ -113,43 +136,19 @@ gh release create v0.2.1 `
 > ```powershell
 > gh release edit v0.2.1 --notes-file $env:TEMP\release_notes.txt
 > ```
+>
+> ⚠️ **必须验证远程 tag 存在：**
+> ```powershell
+> git ls-remote --tags origin | Select-String v0.2.1
+> ```
 
-### 8. 上传 VSCode Marketplace
+### 9. 上传 VSCode Marketplace
 
 1. 打开 https://marketplace.visualstudio.com/manage/publishers/hcdb
 2. 找到 BashTerm MCP → `...` → **Update**
 3. 上传 `.vsix`
 
 > 备选：配置 Azure DevOps PAT 后可用 `npx vsce publish` 一键发布。
-
-### 9. 提交、打标签和推送
-
-**写摘要之前，必须先用以下命令回顾本版本所有改动：**
-
-```bash
-git log <上一个版本tag>..HEAD --oneline   # 例如 git log v0.2.1..HEAD --oneline
-```
-
-> ⚠️ **CHANGELOG 和 release commit 摘要必须覆盖 `git log` 列出的每一个非发布提交。** 不能只看最近一两个提交，漏掉中间的改动。
-
-```bash
-# 1. 提交所有变更
-git add -A
-git commit -m "v0.2.1：<变更摘要，涵盖上一版本至今所有非发布提交>"
-
-# 2. 在对应的 release commit 上打 tag
-git tag v0.2.1
-
-# 3. 推送 commit 和 tag（两步缺一不可）
-git push
-git push origin v0.2.1
-
-# 4. 验证远程 tag 存在
-git ls-remote --tags origin | grep v0.2.1
-```
-
-> ⚠️ **`git push` 只推分支，不推 tag。** 忘记 `git push origin v0.2.1` 会导致 GitHub Release 找不到对应的 tag。
-> 如果 `gh release create` 在 Step 7 已自动创建了 tag，这一步的 `git tag` 和 `git push origin` 可跳过，但必须用 `git ls-remote` 确认远程 tag 存在。
 
 ---
 
