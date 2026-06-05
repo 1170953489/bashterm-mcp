@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-06-05
+
+### Added
+- cmd 终端实时可见输出：wrapper 改为 PowerShell Tee-Object 模式，命令在 cmd /c 下原生执行，输出实时投递到终端和文件
+- 新增 TEST_SUITE_LINUX.md：9 组 Linux 平台测试用例（bash 终端生命周期、命令执行、交互输入、端到端等）
+- 新增 PowerShell 脚本执行器（PowerShellScriptExecutor），统一文件捕获 + Tee-Object 可见输出
+- 新增 Windows 命令自动规划器（windows-command-planner），命令特征检测与 shell 路由
+
+### Fixed
+- 修复 PowerShell Tee-Object 输出 UTF-16LE BOM 误读为 UTF-8 的乱码问题，新增 BOM 检测自适应解码
+- 修复 cmd 命令脚本无 BOM 导致系统 ANSI 编码误读的 CJK 损坏问题，全部脚本写入 UTF-8 BOM
+- 修复 cmd 终端因 chcp 代码页切换触发的输出闪烁问题
+
+### Changed
+- 改进 MCP discovery 机制并补充诊断命令
+- 重构终端执行与 Claude Code 集成架构
+- 优化 Claude Code Bash Hook 选择性拦截策略
+- TEST_SUITE.md 重命名为 TEST_SUITE_WINDOWS.md
+
 ## [0.3.0] - 2026-06-04
 
 ### Added
