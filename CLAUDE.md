@@ -85,20 +85,33 @@ npm publish --access public
 
 ### 7. 创建 GitHub Release 并上传 VSIX
 
-```bash
-gh release create v0.2.1 \
-  --title "v0.2.1 — BashTerm MCP" \
-  --notes "从 CHANGELOG.md 完整复制该版本的 Added / Fixed / Changed 内容，禁止只写占位文字" \
+用 PowerShell 执行（避免 cmd 将 `>` 误解析为重定向）：
+
+```powershell
+# 方式一：notes 较短时直接内联（反引号续行）
+gh release create v0.2.1 `
+  --title "v0.2.1 — BashTerm MCP" `
+  --notes "从 CHANGELOG.md 完整复制该版本的 Added / Fixed / Changed 内容，禁止只写占位文字" `
+  bashterm-mcp-server-0.2.1.vsix
+
+# 方式二：notes 较长或含特殊字符时，先用文件写入再 --notes-file
+gh release create v0.2.1 `
+  --title "v0.2.1 — BashTerm MCP" `
+  --notes-file $env:TEMP\release_notes.txt `
   bashterm-mcp-server-0.2.1.vsix
 ```
 
 > ⚠️ **必须验证 VSIX 资产上传成功：**
-> ```bash
+> ```powershell
 > gh release view v0.2.1 --json assets  # 确认 assets 数组非空，包含 .vsix 文件
 > ```
 > 如果 assets 为空，手动补传：
-> ```bash
+> ```powershell
 > gh release upload v0.2.1 bashterm-mcp-server-0.2.1.vsix
+> ```
+> 如果 notes 被截断或不正确，用文件方式修复：
+> ```powershell
+> gh release edit v0.2.1 --notes-file $env:TEMP\release_notes.txt
 > ```
 
 ### 8. 上传 VSCode Marketplace
