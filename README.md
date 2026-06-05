@@ -17,6 +17,54 @@ BashTerm MCP turns Claude Code command execution into something you can see, ins
 - **Practical guardrails**: Block dangerous command prefixes, restrict working directories, cap output buffers, and auto-close idle sessions.
 - **Safe rollback**: Disable the Claude Code auto-hook or run a restore command to return to Claude Code's default Bash behavior.
 
+## Prerequisites
+
+| Dependency | Version | Check | How to install |
+|------------|---------|-------|----------------|
+| **VSCode** | ≥ 1.99 | `code --version` | [code.visualstudio.com](https://code.visualstudio.com/) |
+| **Node.js** | ≥ 20 | `node --version` | See platform-specific guide below |
+| **Claude Code** | latest | `claude --version` | `npm install -g @anthropic-ai/claude-code` |
+
+### Installing Node.js
+
+**Windows:**
+
+```powershell
+# Option 1: fnm (recommended — fast, supports version switching)
+winget install Schniz.fnm
+fnm install 22          # Install LTS
+fnm use 22
+node --version          # Verify
+
+# Option 2: Official installer
+# Visit https://nodejs.org/ and download the LTS installer.
+```
+
+**Linux / macOS:**
+
+```bash
+# Option 1: fnm (recommended)
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install 22          # Install LTS
+fnm use 22
+node --version          # Verify
+
+# Option 2: nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install 22
+nvm use 22
+node --version          # Verify
+
+# Option 3: system package manager (may ship older versions)
+sudo apt install nodejs      # Debian / Ubuntu
+sudo dnf install nodejs      # Fedora
+brew install node            # macOS Homebrew
+```
+
+> **Node.js is required**: the extension's MCP server registration in `contributes.mcpServers` uses the system `node` to launch the MCP bridge process. Make sure `node` is on your PATH.
+>
+> **Claude Code users**: after installing the extension, it automatically writes a PreToolUse hook to `~/.claude/settings.json` that guides Claude Code to use BashTerm MCP tools. If you use another MCP client, configure the MCP server connection manually.
+
 ## Install
 
 1. Install **BashTerm MCP** from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server).
@@ -124,12 +172,6 @@ node /path/to/extension/dist/mcp-entry.js --status
 ```
 
 The status output is JSON and shows whether the bridge found a registered VSCode extension socket or fell back because no usable discovery entry was available.
-
-## Requirements
-
-- VSCode 1.99+
-- Node.js 20+
-- Claude Code or another MCP-capable client
 
 ## When It Helps Most
 

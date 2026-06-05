@@ -17,6 +17,54 @@ BashTerm MCP 把 Claude Code 的命令执行变成你能看见、能检查、能
 - **实用安全边界**：支持危险命令前缀拦截、工作目录限制、输出缓冲上限和空闲会话自动关闭。
 - **可安全回退**：可关闭 Claude Code 自动 hook，或一键恢复 Claude Code 默认 Bash 行为。
 
+## 依赖
+
+| 依赖 | 版本要求 | 检查命令 | 安装方式 |
+|------|----------|----------|----------|
+| **VSCode** | ≥ 1.99 | `code --version` | [code.visualstudio.com](https://code.visualstudio.com/) |
+| **Node.js** | ≥ 20 | `node --version` | 见下方分平台指引 |
+| **Claude Code** | 最新 | `claude --version` | `npm install -g @anthropic-ai/claude-code` |
+
+### Node.js 安装指引
+
+**Windows：**
+
+```powershell
+# 方式一：fnm（推荐，支持版本切换）
+winget install Schniz.fnm
+fnm install 22          # 安装 LTS
+fnm use 22
+node --version          # 验证
+
+# 方式二：官方安装包
+# 访问 https://nodejs.org/ 下载 LTS 安装包，运行安装向导即可。
+```
+
+**Linux / macOS：**
+
+```bash
+# 方式一：fnm（推荐）
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install 22          # 安装 LTS
+fnm use 22
+node --version          # 验证
+
+# 方式二：nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install 22
+nvm use 22
+node --version          # 验证
+
+# 方式三：系统包管理器（版本可能较旧）
+sudo apt install nodejs      # Debian / Ubuntu
+sudo dnf install nodejs      # Fedora
+brew install node            # macOS Homebrew
+```
+
+> **Node.js 是必须的**：扩展通过 `contributes.mcpServers` 注册 MCP server 时，会用系统 `node` 启动 MCP bridge 进程。请确保 `node` 在 PATH 中可用。
+>
+> **Claude Code 用户**：安装扩展后，扩展会自动向 `~/.claude/settings.json` 写入 PreToolUse hook，引导 Claude Code 使用 BashTerm MCP 工具。如果使用其它 MCP 客户端，需手动配置 MCP server 连接。
+
 ## 安装
 
 1. 从 [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=hcdb.bashterm-mcp-server) 安装 **BashTerm MCP**。
@@ -124,12 +172,6 @@ node /path/to/extension/dist/mcp-entry.js --status
 ```
 
 状态输出是 JSON，可以看到 bridge 是否找到了 VSCode 扩展注册的 socket，或者是否因为没有可用 discovery entry 而进入 fallback。
-
-## 环境要求
-
-- VSCode 1.99+
-- Node.js 20+
-- Claude Code 或其它支持 MCP 的客户端
 
 ## 适合什么场景
 
