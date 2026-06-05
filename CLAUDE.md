@@ -181,6 +181,17 @@ gh release create v0.2.1 `
 - 节与节之间用空行分隔。
 - 标题与第一个要点之间不加空行。
 
+> ⚠️ **Windows 环境下不要用多个 `-m` 提交多行 body。** cmd 会把 `-m` 参数中的换行当作命令分隔符，导致 body 被截断。多行 body 必须用文件方式提交：
+> ```bash
+> # 先写提交信息到临时文件
+> cat > .git/COMMIT_MSG_TMP << 'EOF'
+> <完整提交信息>
+> EOF
+> 
+> # 再用文件提交
+> git commit -F .git/COMMIT_MSG_TMP
+> ```
+
 ### 验证
 
 最后一节固定为「验证」，列出实际执行的验证命令：
