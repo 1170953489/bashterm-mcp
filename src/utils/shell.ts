@@ -2,6 +2,11 @@ import * as path from "path";
 
 export type WindowsDefaultShell = "vscode" | "cmd" | "powershell" | "pwsh";
 export type WindowsShellKind = "cmd" | "powershell" | "unknown";
+export type ShellPlanKind = "cmd" | "powershell" | "pwsh" | "vscode";
+export type ShellPlanCaptureMode =
+  | "shellIntegration"
+  | "cmdExitFile"
+  | "fireAndForget";
 export type ShellResolutionSource = "explicit" | "detected" | "default";
 
 export interface WindowsShellDetection {
@@ -20,6 +25,15 @@ export interface ResolveShellOptions {
 export interface ShellResolution {
   shell?: string;
   source: ShellResolutionSource;
+  detection?: WindowsShellDetection;
+}
+
+export interface ShellPlan {
+  shell?: string;
+  source: ShellResolutionSource;
+  shellKind: ShellPlanKind;
+  captureMode: ShellPlanCaptureMode;
+  reason: string;
   detection?: WindowsShellDetection;
 }
 
@@ -58,6 +72,35 @@ export function resolveShell(
   options: ResolveShellOptions = {},
 ): string | undefined {
   return resolveShellWithMetadata(shell, options).shell;
+}
+
+export function resolveShellPlan(
+  shell?: string,
+  options: ResolveShellOptions = {},
+): ShellPlan {
+  const platform = options.platform ?? process.platform;
+  const resolution = resolveShellWithMetadata(shell, options);
+  const shellKind = resolveShellPlanKind(
+    shell,
+    resolution.shell,
+    platform,
+    options.windowsDefaultShell ?? "vscode",
+    resolution,
+  );
+
+  return {
+    shell: resolution.shell,
+    source: resolution.source,
+    shellKind,
+    captureMode: shellKind === "cmd" ? "cmdExitFile" : "shellIntegration",
+    reason: describeShellResolution(
+      shell,
+      platform,
+      options.windowsDefaultShell ?? "vscode",
+      resolution,
+    ),
+    detection: resolution.detection,
+  };
 }
 
 export function resolveShellWithMetadata(
@@ -175,6 +218,16 @@ export function isCmdShell(shell?: string): boolean {
   return /(^|[\/\\])cmd(\.exe)?$/i.test(shell);
 }
 
+function isPowerShellShell(shell?: string): boolean {
+  if (!shell) return false;
+  return /(^|[\/\\])powershell(\.exe)?$/i.test(shell);
+}
+
+function isPwshShell(shell?: string): boolean {
+  if (!shell) return false;
+  return /(^|[\/\\])pwsh(\.exe)?$/i.test(shell);
+}
+
 function getCmdShellPath(): string {
   return (
     process.env.COMSPEC ||
@@ -204,4 +257,55 @@ function normalizeShellAlias(
     default:
       return shell;
   }
+}
+
+function resolveShellPlanKind(
+  requestedShell: string | undefined,
+  resolvedShell: string | undefined,
+  platform: NodeJS.Platform,
+  windowsDefaultShell: WindowsDefaultShell,
+  resolution: ShellResolution,
+): ShellPlanKind {
+  if (platform !== "win32") return "vscode";
+
+  const requested = requestedShell?.toLowerCase();
+  if (requested === "vscode") return "vscode";
+  if (requested === "cmd") return "cmd";
+  if (requested === "powershell") return "powershell";
+  if (requested === "pwsh") return "pwsh";
+
+  if (resolution.source === "detected" && resolution.detection) {
+    return resolution.detection.kind === "cmd" ? "cmd" : "powershell";
+  }
+
+  if (isCmdShell(resolvedShell)) return "cmd";
+  if (isPwshShell(resolvedShell)) return "pwsh";
+  if (isPowerShellShell(resolvedShell)) return "powershell";
+
+  return windowsDefaultShell === "cmd" ||
+    windowsDefaultShell === "powershell" ||
+    windowsDefaultShell === "pwsh"
+    ? windowsDefaultShell
+    : "vscode";
+}
+
+function describeShellResolution(
+  requestedShell: string | undefined,
+  platform: NodeJS.Platform,
+  windowsDefaultShell: WindowsDefaultShell,
+  resolution: ShellResolution,
+): string {
+  if (resolution.source === "explicit") {
+    return `explicit shell: ${requestedShell ?? "vscode"}`;
+  }
+
+  if (resolution.source === "detected" && resolution.detection) {
+    return `detected ${resolution.detection.kind}: ${resolution.detection.reasons.join(", ")}`;
+  }
+
+  if (platform !== "win32") {
+    return "platform default shell";
+  }
+
+  return `Windows default shell: ${windowsDefaultShell}`;
 }

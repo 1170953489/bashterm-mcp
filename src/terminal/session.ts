@@ -1,54 +1,20 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
 import type {
   TerminalSessionConfig,
   TerminalSessionInfo,
   OutputBuffer,
-  CommandExecution,
 } from "../types/index.js";
 import {
   createOutputBuffer,
-  appendToBuffer,
   readFromBuffer,
   getBufferLineCount,
 } from "./output-capture.js";
 import { generateSessionId, generateCommandId } from "../utils/id-generator.js";
-import { log, logError } from "../utils/logger.js";
+import { log } from "../utils/logger.js";
 import { isCmdShell, resolveShell } from "../utils/shell.js";
-import {
-  buildCmdCaptureCommand,
-  createCmdCaptureFiles,
-  readCaptureFile,
-  writeCmdScript,
-  type CmdCaptureFiles,
-} from "../utils/cmd-capture.js";
-
-interface TerminalExecutionResult {
-  commandId: string;
-  output: string;
-  exitCode: number | null;
-  timedOut: boolean;
-  durationMs: number;
-}
-
-interface PendingTerminalExecution {
-  command: CommandExecution;
-  chunks: string[];
-  started: boolean;
-  ended: boolean;
-  readComplete: boolean;
-  exitCode: number | null;
-  timedOut: boolean;
-  resultResolved: boolean;
-  startedResolve: () => void;
-  completionResolve: (result: TerminalExecutionResult) => void;
-  startedPromise: Promise<void>;
-  completionPromise: Promise<TerminalExecutionResult>;
-}
-
-const SHELL_INTEGRATION_START_TIMEOUT_MS = 3000;
-const CAPTURE_POLL_INTERVAL_MS = 100;
-const CMD_OUTPUT_FLUSH_DELAY_MS = 100;
+import { CmdScriptExecutor } from "./executors/cmd-script-executor.js";
+import { ShellIntegrationExecutor } from "./executors/shell-integration-executor.js";
+import type { TerminalExecutionResult } from "./executors/types.js";
 
 export class TerminalSession {
   readonly sessionId: string;
@@ -61,15 +27,12 @@ export class TerminalSession {
 
   private terminal: vscode.Terminal;
   private outputBuffer: OutputBuffer;
-  private commandHistory: CommandExecution[] = [];
-  private currentCommand: CommandExecution | null = null;
-  private shellExecutionDisposable: vscode.Disposable | null = null;
-  private shellExecutionEndDisposable: vscode.Disposable | null = null;
   private isActive = true;
   private lastCommandAt?: number;
-  private pendingExecution: PendingTerminalExecution | null = null;
   private shellReady: Promise<void>;
   private shellReadyResolve!: () => void;
+  private shellIntegrationExecutor: ShellIntegrationExecutor;
+  private cmdScriptExecutor: CmdScriptExecutor;
 
   constructor(config: TerminalSessionConfig, maxOutputLines: number) {
     this.sessionId = generateSessionId();
@@ -107,75 +70,24 @@ export class TerminalSession {
     // Falls back to a 2-second timeout if shell integration never fires.
     this.shellReady = new Promise<void>((resolve) => {
       this.shellReadyResolve = resolve;
-      // Fallback: resolve after 2s even without shell integration signal
       setTimeout(resolve, 2000);
     });
 
-    this.setupShellIntegrationCapture();
+    this.shellIntegrationExecutor = new ShellIntegrationExecutor({
+      sessionId: this.sessionId,
+      terminal: this.terminal,
+      outputBuffer: this.outputBuffer,
+      onActivity: () => this.markActivity(),
+      onShellReady: () => this.shellReadyResolve(),
+    });
+    this.cmdScriptExecutor = new CmdScriptExecutor({
+      terminal: this.terminal,
+      outputBuffer: this.outputBuffer,
+      onActivity: () => this.markActivity(),
+      isActive: () => this.isActive,
+    });
 
     log(`Session ${this.sessionId} created: ${config.name} (cwd: ${this.cwd})`);
-  }
-
-  private setupShellIntegrationCapture(): void {
-    if (vscode.window.onDidStartTerminalShellExecution) {
-      this.shellExecutionDisposable =
-        vscode.window.onDidStartTerminalShellExecution(async (event) => {
-          if (event.terminal !== this.terminal) return;
-
-          log(
-            `Shell execution started in session ${this.sessionId}: ${event.execution.commandLine?.value ?? "unknown"}`,
-          );
-
-          // Resolve the ready promise if still pending
-          this.shellReadyResolve();
-
-          const pending = this.pendingExecution;
-          if (pending && !pending.started) {
-            pending.started = true;
-            pending.startedResolve();
-          }
-
-          try {
-            const stream = event.execution.read();
-            for await (const chunk of stream) {
-              appendToBuffer(this.outputBuffer, chunk);
-              if (pending) {
-                pending.chunks.push(chunk);
-              }
-            }
-          } catch (err) {
-            logError(
-              `Error reading shell execution output in session ${this.sessionId}`,
-              err,
-            );
-          } finally {
-            if (pending) {
-              pending.readComplete = true;
-              this.tryCompletePendingExecution(pending);
-            }
-          }
-        });
-
-      if (vscode.window.onDidEndTerminalShellExecution) {
-        this.shellExecutionEndDisposable =
-          vscode.window.onDidEndTerminalShellExecution((event) => {
-            if (event.terminal !== this.terminal) return;
-
-            const pending = this.pendingExecution;
-            if (pending && pending.started && !pending.ended) {
-              pending.ended = true;
-              pending.exitCode = event.exitCode ?? null;
-              this.tryCompletePendingExecution(pending);
-            }
-            // Update lastCommandAt so the idle reaper doesn't kill the session immediately
-            this.lastCommandAt = Date.now();
-
-            log(
-              `Shell execution ended in session ${this.sessionId} with exit code: ${event.exitCode}`,
-            );
-          });
-      }
-    }
   }
 
   async execute(
@@ -187,7 +99,7 @@ export class TerminalSession {
       `Executing command in session ${this.sessionId}: ${command.slice(0, 80)}`,
     );
 
-    if (this.currentCommand) {
+    if (this.isBusy) {
       throw new Error(
         "Terminal session is busy. Wait for the current command to finish or use another session.",
       );
@@ -196,7 +108,7 @@ export class TerminalSession {
     if (!waitForCompletion) {
       const commandId = generateCommandId();
       const startedAt = Date.now();
-      this.lastCommandAt = startedAt;
+      this.markActivity(startedAt);
       this.terminal.show(true);
       this.terminal.sendText(command, true);
 
@@ -210,273 +122,15 @@ export class TerminalSession {
     }
 
     if (isCmdShell(this.shell)) {
-      return this.executeWithCmdCapture(command, timeoutMs);
+      return this.cmdScriptExecutor.execute(command, timeoutMs);
     }
 
-    const commandId = generateCommandId();
-    const startedAt = Date.now();
-    this.lastCommandAt = startedAt;
-
-    const commandExecution: CommandExecution = {
-      commandId,
-      command,
-      startedAt,
-      timedOut: false,
-      outputStartLine: this.outputBuffer.lines.length,
-    };
-    const pending = this.createPendingExecution(commandExecution);
-
-    this.currentCommand = commandExecution;
-    this.pendingExecution = pending;
-
-    // Show command in visible terminal for user viewing
-    this.terminal.show(true);
-    this.terminal.sendText(command, true);
-
-    await Promise.race([
-      pending.startedPromise,
-      delay(SHELL_INTEGRATION_START_TIMEOUT_MS),
-    ]);
-
-    if (!pending.started) {
-      this.finishUncapturedExecution(pending);
-      return {
-        commandId,
-        output:
-          "Command sent to the visible terminal, but VS Code shell integration did not start. Output and exit code cannot be captured without re-running the command.",
-        exitCode: null,
-        timedOut: false,
-        durationMs: Date.now() - startedAt,
-      };
-    }
-
-    return Promise.race([
-      pending.completionPromise,
-      delay(timeoutMs).then(() => this.resolveShellIntegrationTimeout(pending)),
-    ]);
-  }
-
-  private createPendingExecution(
-    command: CommandExecution,
-  ): PendingTerminalExecution {
-    let startedResolve!: () => void;
-    let completionResolve!: (result: TerminalExecutionResult) => void;
-
-    const startedPromise = new Promise<void>((resolve) => {
-      startedResolve = resolve;
-    });
-    const completionPromise = new Promise<TerminalExecutionResult>(
-      (resolve) => {
-        completionResolve = resolve;
-      },
-    );
-
-    return {
-      command,
-      chunks: [],
-      started: false,
-      ended: false,
-      readComplete: false,
-      exitCode: null,
-      timedOut: false,
-      resultResolved: false,
-      startedResolve,
-      completionResolve,
-      startedPromise,
-      completionPromise,
-    };
-  }
-
-  private tryCompletePendingExecution(pending: PendingTerminalExecution): void {
-    if (!pending.ended || !pending.readComplete) return;
-
-    const completedAt = Date.now();
-    pending.command.completedAt = completedAt;
-    pending.command.exitCode = pending.exitCode ?? undefined;
-    pending.command.timedOut = pending.timedOut;
-    pending.command.outputEndLine = this.outputBuffer.lines.length;
-    this.commandHistory.push(pending.command);
-
-    if (this.pendingExecution === pending) {
-      this.pendingExecution = null;
-    }
-    if (this.currentCommand === pending.command) {
-      this.currentCommand = null;
-    }
-
-    if (!pending.resultResolved) {
-      pending.resultResolved = true;
-      pending.completionResolve({
-        commandId: pending.command.commandId,
-        output: pending.chunks.join("").trim(),
-        exitCode: pending.exitCode,
-        timedOut: pending.timedOut,
-        durationMs: completedAt - pending.command.startedAt,
-      });
-    }
-  }
-
-  private resolveShellIntegrationTimeout(
-    pending: PendingTerminalExecution,
-  ): TerminalExecutionResult {
-    pending.timedOut = true;
-    pending.command.timedOut = true;
-
-    if (!pending.resultResolved) {
-      pending.resultResolved = true;
-    }
-
-    return {
-      commandId: pending.command.commandId,
-      output: pending.chunks.join("").trim(),
-      exitCode: null,
-      timedOut: true,
-      durationMs: Date.now() - pending.command.startedAt,
-    };
-  }
-
-  private finishUncapturedExecution(pending: PendingTerminalExecution): void {
-    pending.command.completedAt = Date.now();
-    pending.command.exitCode = undefined;
-    pending.command.outputEndLine = this.outputBuffer.lines.length;
-    this.commandHistory.push(pending.command);
-
-    if (this.pendingExecution === pending) {
-      this.pendingExecution = null;
-    }
-    if (this.currentCommand === pending.command) {
-      this.currentCommand = null;
-    }
-  }
-
-  private async executeWithCmdCapture(
-    command: string,
-    timeoutMs: number,
-  ): Promise<TerminalExecutionResult> {
-    const commandId = generateCommandId();
-    const startedAt = Date.now();
-    this.lastCommandAt = startedAt;
-
-    const commandExecution: CommandExecution = {
-      commandId,
-      command,
-      startedAt,
-      timedOut: false,
-      outputStartLine: this.outputBuffer.lines.length,
-    };
-    this.currentCommand = commandExecution;
-    const outputStartIndex = this.outputBuffer.lines.length;
-
-    const files = createCmdCaptureFiles();
-    writeCmdScript(files.commandPath, command);
-    const wrappedCommand = buildCmdCaptureCommand(
-      files.commandPath,
-      files.exitCodePath,
-    );
-
-    this.terminal.show(true);
-    this.terminal.sendText(wrappedCommand, true);
-
-    let timedOut = false;
-    const timeoutHandle = setTimeout(() => {
-      timedOut = true;
-      commandExecution.timedOut = true;
-    }, timeoutMs);
-
-    try {
-      await waitForFile(files.exitCodePath, () => timedOut);
-    } finally {
-      clearTimeout(timeoutHandle);
-    }
-
-    await delay(CMD_OUTPUT_FLUSH_DELAY_MS);
-    const output = this.readBufferedOutputFrom(outputStartIndex);
-
-    if (timedOut) {
-      void this.finalizeCmdCaptureWhenReady(
-        commandExecution,
-        files,
-        outputStartIndex,
-      );
-      return {
-        commandId,
-        output,
-        exitCode: null,
-        timedOut: true,
-        durationMs: Date.now() - startedAt,
-      };
-    }
-
-    const exitCodeText = readCaptureFile(files.exitCodePath).trim();
-    const exitCode = timedOut ? null : Number.parseInt(exitCodeText, 10);
-    const normalizedExitCode = Number.isFinite(exitCode) ? exitCode : null;
-
-    this.finalizeCmdCapture(
-      commandExecution,
-      files,
-      normalizedExitCode,
-      output,
-    );
-
-    return {
-      commandId,
-      output,
-      exitCode: normalizedExitCode,
-      timedOut,
-      durationMs: Date.now() - startedAt,
-    };
-  }
-
-  private async finalizeCmdCaptureWhenReady(
-    commandExecution: CommandExecution,
-    files: CmdCaptureFiles,
-    outputStartIndex: number,
-  ): Promise<void> {
-    await waitForFile(files.exitCodePath, () => !this.isActive);
-    if (!this.isActive || !fs.existsSync(files.exitCodePath)) return;
-
-    const output = this.readBufferedOutputFrom(outputStartIndex);
-    const exitCodeText = readCaptureFile(files.exitCodePath).trim();
-    const exitCode = Number.parseInt(exitCodeText, 10);
-    const normalizedExitCode = Number.isFinite(exitCode) ? exitCode : null;
-
-    this.finalizeCmdCapture(
-      commandExecution,
-      files,
-      normalizedExitCode,
-      output,
-    );
-  }
-
-  private finalizeCmdCapture(
-    commandExecution: CommandExecution,
-    files: CmdCaptureFiles,
-    exitCode: number | null,
-    output: string,
-  ): void {
-    commandExecution.completedAt = Date.now();
-    commandExecution.exitCode = exitCode ?? undefined;
-    commandExecution.outputEndLine = this.outputBuffer.lines.length;
-    this.commandHistory.push(commandExecution);
-
-    if (this.currentCommand === commandExecution) {
-      this.currentCommand = null;
-    }
-
-    try {
-      fs.rmSync(files.captureDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup failures; files are in the OS temp directory.
-    }
-  }
-
-  private readBufferedOutputFrom(outputStartIndex: number): string {
-    return this.outputBuffer.lines.slice(outputStartIndex).join("\n").trim();
+    return this.shellIntegrationExecutor.execute(command, timeoutMs);
   }
 
   sendInput(input: string, pressEnter: boolean): void {
     this.terminal.sendText(input, pressEnter);
-    this.lastCommandAt = Date.now();
+    this.markActivity();
     log(
       `Input sent to session ${this.sessionId}: ${input.slice(0, 50)}${input.length > 50 ? "..." : ""}`,
     );
@@ -506,7 +160,9 @@ export class TerminalSession {
   }
 
   get isBusy(): boolean {
-    return this.currentCommand !== null;
+    return (
+      this.shellIntegrationExecutor.isBusy || this.cmdScriptExecutor.isBusy
+    );
   }
 
   getInfo(): TerminalSessionInfo {
@@ -536,22 +192,13 @@ export class TerminalSession {
 
   dispose(): void {
     this.isActive = false;
-    this.shellExecutionDisposable?.dispose();
-    this.shellExecutionEndDisposable?.dispose();
+    this.shellIntegrationExecutor.dispose();
+    this.cmdScriptExecutor.dispose();
     this.terminal.dispose();
     log(`Session ${this.sessionId} disposed`);
   }
-}
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForFile(
-  filePath: string,
-  shouldStop: () => boolean,
-): Promise<void> {
-  while (!fs.existsSync(filePath) && !shouldStop()) {
-    await delay(CAPTURE_POLL_INTERVAL_MS);
+  private markActivity(timestamp = Date.now()): void {
+    this.lastCommandAt = timestamp;
   }
 }

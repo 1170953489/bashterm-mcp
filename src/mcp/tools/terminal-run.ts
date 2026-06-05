@@ -11,11 +11,11 @@ export async function handleTerminalRun(
 
   // Resolve shell from explicit input, high-confidence Windows command
   // detection, or the configured default shell.
-  const shellResolution = sessionManager.resolveShell(
+  const shellPlan = sessionManager.resolveShellPlan(
     input.shell,
     input.command,
   );
-  const shell = shellResolution.shell;
+  const shell = shellPlan.shell;
 
   // Try to reuse an existing session matching cwd, agentId, env, and shell
   let sessionId: string | undefined;

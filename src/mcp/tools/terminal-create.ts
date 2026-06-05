@@ -8,7 +8,7 @@ export async function handleTerminalCreate(
 ): Promise<McpToolResponse> {
   const input = terminalCreateSchema.parse(params);
 
-  const shell = sessionManager.resolveShell(input.shell).shell;
+  const shell = sessionManager.resolveShellPlan(input.shell).shell;
 
   const sessionInfo = sessionManager.createSession({
     name: input.name,

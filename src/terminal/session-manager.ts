@@ -3,8 +3,8 @@ import * as path from "path";
 import { TerminalSession } from "./session.js";
 import { CommandGuard } from "../security/command-guard.js";
 import {
-  resolveShellWithMetadata,
-  type ShellResolution,
+  resolveShellPlan,
+  type ShellPlan,
 } from "../utils/shell.js";
 import type {
   TerminalSessionConfig,
@@ -64,9 +64,9 @@ export class SessionManager {
     };
   }
 
-  resolveShell(shell?: string, command?: string): ShellResolution {
+  resolveShellPlan(shell?: string, command?: string): ShellPlan {
     const config = this.getConfig();
-    return resolveShellWithMetadata(shell, {
+    return resolveShellPlan(shell, {
       command,
       windowsDefaultShell: config.windowsDefaultShell,
       enableWindowsShellDetection: config.windowsShellDetection,

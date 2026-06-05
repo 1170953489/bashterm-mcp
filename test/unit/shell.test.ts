@@ -4,6 +4,7 @@ import {
   isCmdShell,
   resolveDefaultShell,
   resolveShell,
+  resolveShellPlan,
   resolveShellWithMetadata,
 } from "../../src/utils/shell.js";
 
@@ -132,5 +133,58 @@ describe("shell utilities", () => {
 
     expect(resolved.source).toBe("explicit");
     expect(resolved.shell).toBe("pwsh.exe");
+  });
+
+  it("builds cmd shell plans with exit-code file capture", () => {
+    process.env.COMSPEC = "C:\\Windows\\System32\\cmd.exe";
+
+    const plan = resolveShellPlan(undefined, {
+      platform: "win32",
+      windowsDefaultShell: "vscode",
+      command: "set FOO=bar\r\necho %FOO%",
+    });
+
+    expect(plan.source).toBe("detected");
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.shell).toBe("C:\\Windows\\System32\\cmd.exe");
+    expect(plan.captureMode).toBe("cmdExitFile");
+    expect(plan.reason).toContain("detected cmd");
+  });
+
+  it("builds PowerShell shell plans with shell integration capture", () => {
+    const plan = resolveShellPlan(undefined, {
+      platform: "win32",
+      windowsDefaultShell: "vscode",
+      command: "Write-Output $env:Path",
+    });
+
+    expect(plan.source).toBe("detected");
+    expect(plan.shellKind).toBe("powershell");
+    expect(plan.captureMode).toBe("shellIntegration");
+    expect(plan.reason).toContain("detected powershell");
+  });
+
+  it("keeps ambiguous Windows commands on the configured default shell", () => {
+    const plan = resolveShellPlan(undefined, {
+      platform: "win32",
+      windowsDefaultShell: "vscode",
+      command: "npm test",
+    });
+
+    expect(plan.source).toBe("default");
+    expect(plan.shellKind).toBe("vscode");
+    expect(plan.shell).toBeUndefined();
+    expect(plan.captureMode).toBe("shellIntegration");
+  });
+
+  it("uses explicit shell in shell plans before command detection", () => {
+    const plan = resolveShellPlan("cmd", {
+      platform: "win32",
+      command: "Write-Output $env:Path",
+    });
+
+    expect(plan.source).toBe("explicit");
+    expect(plan.shellKind).toBe("cmd");
+    expect(plan.captureMode).toBe("cmdExitFile");
   });
 });

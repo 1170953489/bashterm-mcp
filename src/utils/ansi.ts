@@ -1,17 +1,16 @@
-import stripAnsi from "strip-ansi";
-
 /**
  * Strip ANSI escape sequences from a string.
  *
- * Uses the `strip-ansi` library for CSI/SGR sequences and additionally
- * handles OSC (Operating System Command) sequences (e.g. \x1b]0;title\x07).
+ * Handles common CSI/SGR sequences and OSC (Operating System Command)
+ * sequences (e.g. \x1b]0;title\x07).
  *
- * Also normalizes line endings (\r\n → \n, bare \r → \n).
+ * Also normalizes line endings (\r\n to \n, bare \r removed).
  */
 export function cleanOutput(output: string): string {
-  return stripAnsi(output)
+  return output
     // OSC sequences: ESC ] ... BEL  (e.g. set window title)
     .replace(/\x1b\][^\x07]*\x07/g, "")
+    .replace(ansiSequencePattern, "")
     // Normalize line endings
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "")
@@ -32,3 +31,7 @@ export function stripCommandEcho(output: string, command: string): string {
   }
   return output;
 }
+
+// ESC followed by a CSI/control sequence. This covers color, cursor, erase,
+// and similar terminal control sequences used in captured output.
+const ansiSequencePattern = /\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
