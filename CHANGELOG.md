@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-06-05
+
+### Added
+- 新增手动 MCP 服务器安装说明章节（中英文），指导用户通过 `claude mcp add` 命令手动注册 BashTerm MCP server
+
+### Fixed
+- 修复 IPC bridge JSON-RPC 响应错误地使用 IPC 内部 ID 而非原始 JSON-RPC 请求 ID，可能导致客户端请求映射失败
+- 修复 IPC bridge 对缺少 `method` 字段的无效请求静默丢弃的问题，现返回 JSON-RPC Invalid Request 错误响应
+
 ## [0.5.1] - 2026-06-05
 
 ### Changed
