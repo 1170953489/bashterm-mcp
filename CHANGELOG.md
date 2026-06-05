@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-06-05
+
+### Changed
+- README 新增依赖说明与分平台 Node.js 安装指引，移除底部重复的环境要求节，中英文同步
+- CLAUDE.md 补充 Windows 下多行 commit body 的文件提交方式及发版流程细节
+
 ## [0.5.0] - 2026-06-05
 
 ### Added
