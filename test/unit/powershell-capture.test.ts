@@ -63,6 +63,10 @@ describe("PowerShell capture utilities", () => {
     expect(raw[2]).toBe(0xbf);
     const content = raw.subarray(3).toString("utf8");
     expect(content).toContain("[Console]::OutputEncoding");
+    expect(content).toContain("[Console]::Write");
+    expect(content).toContain("${btEsc}[1A${btEsc}[2K`r");
+    expect(content).toContain("Get-Content -LiteralPath $btCommandPath");
+    expect(content).toContain("[Console]::WriteLine(\"$btPrompt$_\")");
     expect(content).toContain("Tee-Object -FilePath $btOutputPath");
     expect(content).toContain("Set-Content -LiteralPath $btExitCodePath");
     expect(content).toContain("exit $btExitCode");

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-05
+
+### Added
+- PowerShell 命令实时回显：wrapper 脚本执行前先输出命令文本及 `PS path>` 提示符前缀，与 cmd 终端的命令可见输出保持一致
+
 ## [0.4.0] - 2026-06-05
 
 ### Added
