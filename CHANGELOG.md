@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-06-08
+
+### Added
+- 扩展激活时自动写入 `~/.claude/mcp.json` 和 `~/.claude.json` 中的 MCP 服务配置条目，解决新开工作区 MCP 服务不显示的问题
+- 扩展恢复/卸载时自动从上述配置文件移除 BashTerm 条目
+
+### Fixed
+- 修复命令经 CmdScriptExecutor/PowerShellScriptExecutor 执行后 `read` 工具无法读取历史输出（输出未写入共享缓冲区）
+- 修复 Windows 下 `.claude.json` 路径键使用反斜杠导致与 Claude Code 正斜杠路径不匹配
+- 修复 PowerShell 语法检测遗漏 `Invoke-*` 系列 cmdlet
+- 修复 cmd 语法检测遗漏 `setlocal`/延迟展开 `!VAR!` 语法
+- 修复命令守卫 `rm -rf /` 误拦 `/tmp/xxx` 等合法路径
+- 修复 `exit` 退出码测试在 Linux 终端直接执行 `exit 42` 导致后续测试失败的问题
+- 修复 `run` 工具指定 `name` 参数时未正确复用同名会话
+
 ## [0.5.2] - 2026-06-05
 
 ### Added
