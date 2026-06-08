@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as vscode from "vscode";
 import type { CommandExecution, OutputBuffer } from "../../types/index.js";
 import { generateCommandId } from "../../utils/id-generator.js";
+import { appendToBuffer } from "../output-capture.js";
 import {
   buildPowerShellCaptureCommand,
   createPowerShellCaptureFiles,
@@ -95,10 +96,14 @@ export class PowerShellScriptExecutor implements TerminalCommandExecutor {
     await delay(POWERSHELL_OUTPUT_FLUSH_DELAY_MS);
 
     if (timedOut) {
+      const partialOutput = this.readOutputFromFile(files);
+      if (partialOutput) {
+        appendToBuffer(this.outputBuffer, partialOutput);
+      }
       void this.finalizeWhenReady(commandExecution, files);
       return {
         commandId,
-        output: this.readOutputFromFile(files),
+        output: partialOutput,
         exitCode: null,
         timedOut: true,
         durationMs: Date.now() - startedAt,
@@ -107,7 +112,7 @@ export class PowerShellScriptExecutor implements TerminalCommandExecutor {
 
     const exitCode = this.readExitCode(files.exitCodePath);
     const output = this.readOutputFromFile(files);
-    this.finalize(commandExecution, files, exitCode);
+    this.finalize(commandExecution, files, exitCode, output);
 
     return {
       commandId,
@@ -130,16 +135,23 @@ export class PowerShellScriptExecutor implements TerminalCommandExecutor {
     if (!this.isActiveSession() || !fs.existsSync(files.exitCodePath)) return;
 
     const exitCode = this.readExitCode(files.exitCodePath);
-    this.finalize(commandExecution, files, exitCode);
+    const output = this.readOutputFromFile(files);
+    this.finalize(commandExecution, files, exitCode, output);
   }
 
   private finalize(
     commandExecution: CommandExecution,
     files: PowerShellCaptureFiles,
     exitCode: number | null,
+    output: string,
   ): void {
     commandExecution.completedAt = Date.now();
     commandExecution.exitCode = exitCode ?? undefined;
+
+    // Append captured output to the shared buffer so the read tool can access it
+    if (output) {
+      appendToBuffer(this.outputBuffer, output);
+    }
     commandExecution.outputEndLine = this.outputBuffer.lines.length;
     this.commandHistory.push(commandExecution);
 

@@ -366,11 +366,43 @@ function restoreMcpJson(mcpJsonPath: string): void {
   }
 }
 
+function normalizeWorkspacePath(workspacePath: string): string {
+  // Normalize to forward slashes and lowercase drive letter to match
+  // Claude Code's internal path representation (e.g. "c:/Users/.../project").
+  let normalized = workspacePath.replace(/\\/g, "/");
+  // Lowercase drive letter on Windows (e.g., "C:" → "c:")
+  if (/^[A-Z]:/.test(normalized)) {
+    normalized = normalized[0].toLowerCase() + normalized.slice(1);
+  }
+  return normalized;
+}
+
+function findExistingProjectKey(
+  projects: Record<string, unknown>,
+  workspacePath: string,
+): string | undefined {
+  // First try exact match
+  if (Object.prototype.hasOwnProperty.call(projects, workspacePath)) {
+    return workspacePath;
+  }
+  // Try normalized form
+  const normalized = normalizeWorkspacePath(workspacePath);
+  if (
+    normalized !== workspacePath &&
+    Object.prototype.hasOwnProperty.call(projects, normalized)
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
 function writeProjectClaudeJson(
   claudeJsonPath: string,
   workspacePath: string,
 ): void {
   if (!workspacePath) return;
+
+  const normalizedPath = normalizeWorkspacePath(workspacePath);
 
   const existing: Record<string, unknown> = (() => {
     if (!fs.existsSync(claudeJsonPath)) {
@@ -386,8 +418,20 @@ function writeProjectClaudeJson(
   })();
 
   const projects = isRecord(existing.projects) ? existing.projects : {};
-  const projectConfig = isRecord(projects[workspacePath])
-    ? (projects[workspacePath] as Record<string, unknown>)
+
+  // Remove stale entries for the same workspace under a different path notation
+  const staleKeys = Object.keys(projects).filter(
+    (k) =>
+      k !== normalizedPath &&
+      resolveToSamePath(k, workspacePath),
+  );
+  for (const staleKey of staleKeys) {
+    delete projects[staleKey];
+  }
+
+  const existingKey = findExistingProjectKey(projects, normalizedPath);
+  const projectConfig = existingKey
+    ? (projects[existingKey] as Record<string, unknown>)
     : {};
 
   const servers = isRecord(projectConfig.mcpServers)
@@ -395,7 +439,11 @@ function writeProjectClaudeJson(
     : {};
   servers["BashTerm"] = MCP_SERVER_ENTRY;
   projectConfig.mcpServers = servers;
-  projects[workspacePath] = projectConfig;
+  projects[normalizedPath] = projectConfig;
+  // If we moved to a different key, delete the old one
+  if (existingKey && existingKey !== normalizedPath) {
+    delete projects[existingKey];
+  }
   existing.projects = projects;
 
   const tempPath = `${claudeJsonPath}.tmp-${process.pid}-${Date.now()}`;
@@ -412,11 +460,21 @@ function writeProjectClaudeJson(
   }
 }
 
+function resolveToSamePath(a: string, b: string): boolean {
+  try {
+    return path.resolve(a) === path.resolve(b);
+  } catch {
+    return false;
+  }
+}
+
 function restoreProjectClaudeJson(
   claudeJsonPath: string,
   workspacePath: string,
 ): void {
   if (!workspacePath || !fs.existsSync(claudeJsonPath)) return;
+
+  const normalizedPath = normalizeWorkspacePath(workspacePath);
 
   let parsed: Record<string, unknown>;
   try {
@@ -429,7 +487,10 @@ function restoreProjectClaudeJson(
   if (!isRecord(parsed) || !isRecord(parsed.projects)) return;
 
   const projects = parsed.projects as Record<string, unknown>;
-  const projectConfig = projects[workspacePath];
+  const existingKey = findExistingProjectKey(projects, normalizedPath);
+  if (!existingKey) return;
+
+  const projectConfig = projects[existingKey];
   if (!isRecord(projectConfig)) return;
 
   const servers = (projectConfig as Record<string, unknown>).mcpServers;
@@ -441,6 +502,12 @@ function restoreProjectClaudeJson(
 
   if (Object.keys(servers).length === 0) {
     delete (projectConfig as Record<string, unknown>).mcpServers;
+  }
+
+  // If the key isn't normalized, move to normalized key
+  if (existingKey !== normalizedPath) {
+    delete projects[existingKey];
+    projects[normalizedPath] = projectConfig;
   }
 
   const tempPath = `${claudeJsonPath}.tmp-${process.pid}-${Date.now()}`;

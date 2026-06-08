@@ -130,10 +130,12 @@ mcp__BashTerm__exec { sessionId: "<sessionId>", command: "echo %COMSPEC%" }
 ### 2.5 cmd 专用语法：`set` 命令
 
 ```
-mcp__BashTerm__exec { sessionId: "<sessionId>", command: "set MY_TEST=42 && echo %MY_TEST%" }
+mcp__BashTerm__exec { sessionId: "<sessionId>", command: "setlocal enabledelayedexpansion && set MY_TEST=42 && echo !MY_TEST!" }
 ```
 
 **预期**：返回结果包含 "42"。
+
+> 💡 使用 `setlocal enabledelayedexpansion` + `!VAR!` 语法而非 `%VAR%`，因为 cmd.exe 在解析时展开 `%VAR%`，同行 `set`+`echo %VAR%` 无法获取新值。
 
 ### 2.6 cmd 专用语法：`dir` 命令
 
@@ -272,10 +274,10 @@ mcp__BashTerm__run { command: "Get-Date -Format yyyy-MM-dd" }
 ### 4.3 run 自动检测 cmd 语法
 
 ```
-mcp__BashTerm__run { command: "set TEST_VAR=auto_detect && echo %TEST_VAR%" }
+mcp__BashTerm__run { command: "setlocal enabledelayedexpansion && set TEST_VAR=auto_detect && echo !TEST_VAR!" }
 ```
 
-**预期**：自动检测到 cmd 语法（`set` + `%VAR%`），创建 cmd 终端执行。
+**预期**：自动检测到 cmd 语法（`set` + `!VAR!`），创建 cmd 终端执行，返回 "auto_detect"。
 
 ### 4.4 run 冲突语法检测
 

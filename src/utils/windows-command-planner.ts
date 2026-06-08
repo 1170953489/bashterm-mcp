@@ -114,6 +114,12 @@ export function analyzeWindowsCommandSyntax(
   if (/^\s*set\s+[A-Za-z_][A-Za-z0-9_]*=/im.test(normalized)) {
     cmdReasons.push("uses cmd set VAR=value syntax");
   }
+  if (/\bsetlocal\b/i.test(normalized)) {
+    cmdReasons.push("uses cmd setlocal command");
+  }
+  if (/![-A-Za-z0-9_]+!/.test(normalized)) {
+    cmdReasons.push("uses cmd delayed expansion !VAR! syntax");
+  }
   if (/(^|[&|\n]\s*)dir\s+\/[a-z]/i.test(normalized)) {
     cmdReasons.push("uses cmd dir slash switches");
   }
@@ -142,7 +148,7 @@ export function analyzeWindowsCommandSyntax(
     powershellReasons.push("uses PowerShell variable syntax");
   }
   if (
-    /\b(Get|Set|New|Remove|Test|Select|Where|ForEach|Write|Start|Stop)-[A-Za-z]+\b/i.test(
+    /\b(Get|Set|New|Remove|Invoke|Test|Select|Where|ForEach|Write|Start|Stop)-[A-Za-z]+\b/i.test(
       normalized,
     )
   ) {

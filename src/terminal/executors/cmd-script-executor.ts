@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as vscode from "vscode";
 import type { CommandExecution, OutputBuffer } from "../../types/index.js";
 import { generateCommandId } from "../../utils/id-generator.js";
+import { appendToBuffer } from "../output-capture.js";
 import {
   buildCmdCaptureCommand,
   createCmdCaptureFiles,
@@ -106,10 +107,14 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
     await delay(CMD_OUTPUT_FLUSH_DELAY_MS);
 
     if (timedOut) {
+      const partialOutput = this.readOutputFromFile(files);
+      if (partialOutput) {
+        appendToBuffer(this.outputBuffer, partialOutput);
+      }
       void this.finalizeWhenReady(commandExecution, files);
       return {
         commandId,
-        output: this.readOutputFromFile(files),
+        output: partialOutput,
         exitCode: null,
         timedOut: true,
         durationMs: Date.now() - startedAt,
@@ -153,6 +158,11 @@ export class CmdScriptExecutor implements TerminalCommandExecutor {
   ): void {
     commandExecution.completedAt = Date.now();
     commandExecution.exitCode = exitCode ?? undefined;
+
+    // Append captured output to the shared buffer so the read tool can access it
+    if (output) {
+      appendToBuffer(this.outputBuffer, output);
+    }
     commandExecution.outputEndLine = this.outputBuffer.lines.length;
     this.commandHistory.push(commandExecution);
 
