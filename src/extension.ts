@@ -77,18 +77,29 @@ export function activate(context: vscode.ExtensionContext): void {
       .getConfiguration("bashterm-mcp-server")
       .get<boolean>("autoConfigureClaudeCode", true);
     if (autoConfigureClaude) {
-      const result = configureClaudeCode();
+      const result = configureClaudeCode({
+        workspacePath: getWorkspacePath(),
+      });
       if (result.status === "configured") {
         log(
           "Auto-configured .claude/settings.json: complex Bash commands redirected to BashTerm MCP",
+        );
+        log(
+          "Auto-configured .claude/mcp.json: BashTerm MCP server registered for all projects",
+        );
+      } else if (result.status === "unchanged") {
+        log(
+          "Claude Code hook already configured. Updated .claude/mcp.json if needed.",
         );
       } else if (result.status === "error") {
         logError("Failed to auto-configure .claude/settings.json", result.error);
       }
     } else {
-      const result = restoreClaudeCode();
+      const result = restoreClaudeCode({
+        workspacePath: getWorkspacePath(),
+      });
       if (result.changed) {
-        log("Restored Claude Code default Bash by removing BashTerm MCP hook");
+        log("Restored Claude Code default Bash by removing BashTerm MCP hook and mcp.json entry");
       } else if (result.status === "error") {
         logError("Failed to restore Claude Code default Bash", result.error);
       }
@@ -112,7 +123,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "bashterm-mcp-server.restoreClaudeCodeDefaultBash",
       () => {
-        const restored = restoreClaudeCode();
+        const restored = restoreClaudeCode({
+          workspacePath: getWorkspacePath(),
+        });
         if (restored.status === "error") {
           logError("Failed to restore Claude Code default Bash", restored.error);
         }
@@ -135,7 +148,9 @@ export function activate(context: vscode.ExtensionContext): void {
             true,
             vscode.ConfigurationTarget.Global,
           );
-        const result = configureClaudeCode();
+        const result = configureClaudeCode({
+          workspacePath: getWorkspacePath(),
+        });
         if (result.status === "error") {
           logError("Failed to enable Claude Code hook", result.error);
           void vscode.window.showErrorMessage(

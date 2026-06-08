@@ -75,7 +75,9 @@ The extension automatically registers the MCP server through `contributes.mcpSer
 
 ## Manual MCP Server Setup
 
-If Claude Code does not automatically discover the MCP server registered by the VSCode extension, or you want to add it manually, follow these steps.
+> **Note**: Starting from v0.5.3, the extension automatically writes `~/.claude/mcp.json` (user-level) and the per-project `~/.claude.json` entry when it activates, so manual setup is usually unnecessary. The steps below remain as a fallback.
+
+If Claude Code does not automatically discover the MCP server registered by the VSCode extension, or the auto-configuration did not work, follow these steps.
 
 If Claude Code CLI is not installed yet, install and verify it first:
 
@@ -96,13 +98,13 @@ Restart Claude Code after adding it, then the `BashTerm` MCP server should be av
 
 ## Claude Code Integration
 
-BashTerm MCP can write a user-level PreToolUse hook to `~/.claude/settings.json`. That hook blocks Claude Code's built-in hidden `Bash` tool and tells Claude Code to use BashTerm MCP tools instead, keeping command execution visible inside VSCode.
+BashTerm MCP writes a user-level PreToolUse hook to `~/.claude/settings.json` that redirects complex Bash commands to BashTerm MCP tools. It also writes `~/.claude/mcp.json` (user-level MCP server config) and the per-project entry in `~/.claude.json`, so BashTerm MCP is available across all projects without manual setup.
 
 You stay in control:
 
 - Enable the hook with `BashTerm MCP: Enable Claude Code Hook` from the Command Palette.
 - Turn automatic hook configuration off with `bashterm-mcp-server.autoConfigureClaudeCode`.
-- Restore default Bash with `BashTerm MCP: Restore Claude Code Default Bash` from the Command Palette.
+- Restore default Bash with `BashTerm MCP: Restore Claude Code Default Bash` from the Command Palette. This also removes the BashTerm MCP entry from `~/.claude/mcp.json` and `~/.claude.json`.
 - Run `BashTerm MCP: Show Diagnostics` to inspect the active socket, discovery registry, Node path, workspace, and selected MCP bridge target.
 
 If you restore the default Bash behavior and want it to stay restored after VSCode restarts, also set `bashterm-mcp-server.autoConfigureClaudeCode` to `false`.
@@ -183,7 +185,7 @@ Run these from the VSCode Command Palette:
 | Command | What it does |
 |---------|--------------|
 | `BashTerm MCP: Enable Claude Code Hook` | Enables `autoConfigureClaudeCode`, writes the Claude Code PreToolUse hook, and asks you to restart Claude Code. |
-| `BashTerm MCP: Restore Claude Code Default Bash` | Removes the BashTerm MCP Claude Code hook from `~/.claude/settings.json`. |
+| `BashTerm MCP: Restore Claude Code Default Bash` | Removes the BashTerm MCP hook from `~/.claude/settings.json`, and the MCP server entry from `~/.claude/mcp.json` and `~/.claude.json`. |
 | `BashTerm MCP: Show Diagnostics` | Opens the BashTerm MCP output panel with platform, Node, workspace, socket, discovery registry, and selected MCP bridge details. |
 
 For CLI-level troubleshooting, run the MCP bridge directly:
