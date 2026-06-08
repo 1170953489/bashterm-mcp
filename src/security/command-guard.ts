@@ -27,7 +27,7 @@ export class CommandGuard {
 
     // Check against blocked commands
     for (const blocked of this.config.blockedCommands) {
-      if (trimmed.includes(blocked)) {
+      if (isBlockedByPattern(trimmed, blocked)) {
         return {
           valid: false,
           reason: `Command contains blocked pattern: "${blocked}"`,
@@ -76,4 +76,25 @@ export class CommandGuard {
 
     return { valid: true };
   }
+}
+
+/**
+ * Check if a command matches a blocked pattern.
+ *
+ * Most patterns use substring matching (`includes`).  The ``rm -rf /`` pattern
+ * uses prefix + next‑char inspection so that ``rm -rf /tmp/foo`` is allowed
+ * while ``rm -rf /``, ``rm -rf /*``, and ``rm -rf / --no-preserve-root`` are
+ * still blocked.
+ */
+function isBlockedByPattern(trimmed: string, pattern: string): boolean {
+  if (pattern === "rm -rf /") {
+    if (!trimmed.startsWith("rm -rf /")) return false;
+    const after = trimmed.slice("rm -rf /".length);
+    return (
+      after.length === 0 ||
+      after.startsWith(" ") ||
+      after.startsWith("*")
+    );
+  }
+  return trimmed.includes(pattern);
 }

@@ -41,12 +41,15 @@ export async function handleTerminalRun(
     shellKind = resolved.shellKind;
   }
 
-  // Try to reuse an existing session matching cwd, agentId, env, and shell
+  // Try to reuse an existing session matching cwd, agentId, env, shell, and name.
+  // When a name is requested, only reuse sessions that share that name so the
+  // VSCode terminal tab label matches user intent.
   let sessionId: string | undefined;
   let isNewSession = false;
   const existing = sessionManager.listSessions(input.agentId);
   for (const s of existing) {
     if (!s.isActive) continue;
+    if (input.name && s.name !== input.name) continue;
     if (cwd && s.cwd !== cwd) continue;
     if (s.shell !== shell) continue;
     if (s.shellKind !== shellKind) continue;

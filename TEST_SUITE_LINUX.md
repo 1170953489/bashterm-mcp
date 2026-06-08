@@ -164,10 +164,11 @@ mcp__BashTerm__exec { sessionId: "<sessionId>", command: "true" }
 ### 2.9 退出码（失败）
 
 ```
-mcp__BashTerm__exec { sessionId: "<sessionId>", command: "exit 42" }
+mcp__BashTerm__exec { sessionId: "<sessionId>", command: "bash -c 'exit 42'" }
 ```
 
 **预期**：返回 exitCode 为 42。
+> 注意：不能用 `exit` 命令，因为它会终止当前 shell 进程并关闭终端。
 
 ### 2.10 命令超时
 
@@ -220,7 +221,7 @@ mcp__BashTerm__list {}
 mcp__BashTerm__run { command: "echo named-session", name: "my-linux-session" }
 ```
 
-**预期**：终端标签页显示 "my-linux-session"。
+**预期**：终端标签页显示 "my-linux-session"（name 匹配时复用，不匹配时新建）。
 
 ### 3.4 run 指定 cwd
 

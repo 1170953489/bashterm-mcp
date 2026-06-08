@@ -32,6 +32,30 @@ describe("CommandGuard", () => {
       expect(result.reason).toContain("rm -rf /");
     });
 
+    it("should block rm -rf / with trailing space", () => {
+      const guard = new CommandGuard(createConfig());
+      expect(guard.validateCommand("rm -rf / ").valid).toBe(false);
+    });
+
+    it("should block rm -rf /*", () => {
+      const guard = new CommandGuard(createConfig());
+      expect(guard.validateCommand("rm -rf /*").valid).toBe(false);
+    });
+
+    it("should block rm -rf / --no-preserve-root", () => {
+      const guard = new CommandGuard(createConfig());
+      expect(guard.validateCommand("rm -rf / --no-preserve-root").valid).toBe(
+        false,
+      );
+    });
+
+    it("should allow rm -rf /tmp/xxx (not root target)", () => {
+      const guard = new CommandGuard(createConfig());
+      expect(guard.validateCommand("rm -rf /tmp/foo").valid).toBe(true);
+      expect(guard.validateCommand("rm -rf /var/log").valid).toBe(true);
+      expect(guard.validateCommand("rm -rf /home/user/temp").valid).toBe(true);
+    });
+
     it("should block fork bomb", () => {
       const guard = new CommandGuard(createConfig());
       const result = guard.validateCommand(":(){ :|:& };:");
