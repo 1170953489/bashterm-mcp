@@ -41,7 +41,7 @@ const TOOLS: ToolDefinition[] = [
   {
     name: "run",
     description:
-      "Plan a command, create or reuse the matching visible terminal, and execute it. On Windows this is the recommended routed execution entrypoint.",
+      "Execute a command in a visible VSCode terminal, reusing an existing idle terminal whenever possible. Only creates a new terminal when no compatible idle terminal exists. On Windows this is the recommended routed execution entrypoint.",
     inputSchema: toJsonSchema(terminalRunSchema),
     handler: handleTerminalRun,
   },
@@ -55,7 +55,7 @@ const TOOLS: ToolDefinition[] = [
   {
     name: "exec",
     description:
-      "Execute a command in an existing terminal session. On Windows this does not reroute shell-incompatible commands; use run for planning.",
+      "Execute a command in a specific terminal session by sessionId. Prefer run (which reuses terminals automatically) unless you need to target a particular session. On Windows this does not reroute shell-incompatible commands; use run for planning.",
     inputSchema: toJsonSchema(terminalExecuteSchema),
     handler: handleTerminalExecute,
   },

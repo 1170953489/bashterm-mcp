@@ -1,5 +1,6 @@
+import * as path from "path";
 import type { SessionManager } from "../../terminal/session-manager.js";
-import type { McpToolResponse } from "../../types/index.js";
+import type { McpToolResponse, TerminalSessionInfo } from "../../types/index.js";
 import { terminalRunSchema } from "./schemas.js";
 import { formatExecuteResult } from "./command-utils.js";
 
@@ -41,28 +42,69 @@ export async function handleTerminalRun(
     shellKind = resolved.shellKind;
   }
 
-  // Try to reuse an existing session matching cwd, agentId, env, shell, and name.
-  // When a name is requested, only reuse sessions that share that name so the
-  // VSCode terminal tab label matches user intent.
+  // ── Reuse matching ──────────────────────────────────────────────
+  // Two-pass strategy:
+  //   Pass 1 — prefer a session with a matching (contained) cwd.
+  //   Pass 2 — fall back to *any* idle session visible to this agent.
+  //
+  // Shell / shellKind are only filtered when the caller explicitly
+  // requests a particular shell.  env is only filtered when the
+  // caller provides one.  Name is only filtered when the caller
+  // provides one.
   let sessionId: string | undefined;
   let isNewSession = false;
   const existing = sessionManager.listSessions(input.agentId);
-  for (const s of existing) {
-    if (!s.isActive) continue;
-    if (input.name && s.name !== input.name) continue;
-    if (cwd && s.cwd !== cwd) continue;
-    if (s.shell !== shell) continue;
-    if (s.shellKind !== shellKind) continue;
-    // Only reuse if env configuration matches (request without env can reuse any)
-    if (input.env && !envsEqual(input.env, s.env)) continue;
-    const session = sessionManager.getSession(s.sessionId);
-    if (session && !session.isBusy) {
-      sessionId = s.sessionId;
-      break;
+
+  const passes: Array<{
+    label: string;
+    accept: (s: TerminalSessionInfo) => boolean;
+  }> = [
+    {
+      // Pass 1 – same or parent/child cwd
+      label: "cwd-match",
+      accept: (s) => {
+        if (cwd && s.cwd !== cwd) {
+          // Also accept if one cwd is a prefix (parent) of the other
+          const rel = path.relative(s.cwd, cwd);
+          if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) {
+            // requested cwd is a subdirectory of the session cwd
+          } else {
+            const rel2 = path.relative(cwd, s.cwd);
+            if (!rel2 || rel2.startsWith("..") || path.isAbsolute(rel2)) {
+              return false;
+            }
+            // session cwd is a subdirectory of the requested cwd
+          }
+        }
+        return true;
+      },
+    },
+    {
+      // Pass 2 – any idle session (matching agentId already ensured by listSessions)
+      label: "any-idle",
+      accept: () => true,
+    },
+  ];
+
+  for (const pass of passes) {
+    for (const s of existing) {
+      if (!s.isActive) continue;
+      if (input.name && s.name !== input.name) continue;
+      // Only filter shell when the caller explicitly requests one
+      if (input.shell !== undefined && s.shell !== shell) continue;
+      if (input.shell !== undefined && s.shellKind !== shellKind) continue;
+      if (input.env && !envsEqual(input.env, s.env)) continue;
+      if (!pass.accept(s)) continue;
+      const session = sessionManager.getSession(s.sessionId);
+      if (session && !session.isBusy) {
+        sessionId = s.sessionId;
+        break;
+      }
     }
+    if (sessionId) break;
   }
 
-  // Create new session only if no compatible one exists
+  // Create new session only if no reusable one exists
   if (!sessionId) {
     const sessionInfo = sessionManager.createSession({
       name:
