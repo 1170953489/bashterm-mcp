@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-06-09
+
+### Changed
+- 放宽终端复用匹配策略，由单轮精确匹配改为两轮降级匹配：优先同目录（精确相等或父子目录包含），兜底复用同 agentId 的任意空闲终端
+- shell/shellKind 仅在调用方显式指定时才参与匹配，避免 undefined 与 /bin/bash 等默认值间无法复用
+- `run` 工具描述改为复用优先，`exec` 工具描述明确其适用于已持有 sessionId 的场景
+
 ## [0.5.3] - 2026-06-08
 
 ### Added
