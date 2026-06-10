@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-06-09
+
+### Fixed
+- 修复 ShellIntegrationExecutor 超时后 `resolveTimeout` 未清除 `currentCommand`，导致 `isBusy` 永久为 true、终端无法复用的问题
+
 ## [0.6.0] - 2026-06-09
 
 ### Changed
