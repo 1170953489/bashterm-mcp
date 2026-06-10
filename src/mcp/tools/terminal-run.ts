@@ -3,6 +3,7 @@ import type { SessionManager } from "../../terminal/session-manager.js";
 import type { McpToolResponse, TerminalSessionInfo } from "../../types/index.js";
 import { terminalRunSchema } from "./schemas.js";
 import { formatExecuteResult } from "./command-utils.js";
+import { log } from "../../utils/logger.js";
 
 export async function handleTerminalRun(
   params: unknown,
@@ -88,18 +89,43 @@ export async function handleTerminalRun(
 
   for (const pass of passes) {
     for (const s of existing) {
-      if (!s.isActive) continue;
-      if (input.name && s.name !== input.name) continue;
-      // Only filter shell when the caller explicitly requests one
-      if (input.shell !== undefined && s.shell !== shell) continue;
-      if (input.shell !== undefined && s.shellKind !== shellKind) continue;
-      if (input.env && !envsEqual(input.env, s.env)) continue;
-      if (!pass.accept(s)) continue;
-      const session = sessionManager.getSession(s.sessionId);
-      if (session && !session.isBusy) {
-        sessionId = s.sessionId;
-        break;
+      if (!s.isActive) {
+        log(`[reuse] skip ${s.sessionId}: not active`);
+        continue;
       }
+      if (input.name && s.name !== input.name) {
+        log(`[reuse] skip ${s.sessionId}: name mismatch (want="${input.name}" got="${s.name}")`);
+        continue;
+      }
+      // Only filter shell when the caller explicitly requests one
+      if (input.shell !== undefined && s.shell !== shell) {
+        log(`[reuse] skip ${s.sessionId}: shell mismatch (want="${shell}" got="${s.shell}")`);
+        continue;
+      }
+      if (input.shell !== undefined && s.shellKind !== shellKind) {
+        log(`[reuse] skip ${s.sessionId}: shellKind mismatch (want="${shellKind}" got="${s.shellKind}")`);
+        continue;
+      }
+      if (input.env && !envsEqual(input.env, s.env)) {
+        log(`[reuse] skip ${s.sessionId}: env mismatch`);
+        continue;
+      }
+      if (!pass.accept(s)) {
+        log(`[reuse] skip ${s.sessionId}: cwd mismatch (pass="${pass.label}")`);
+        continue;
+      }
+      const session = sessionManager.getSession(s.sessionId);
+      if (!session) {
+        log(`[reuse] skip ${s.sessionId}: session not found in manager`);
+        continue;
+      }
+      if (session.isBusy) {
+        log(`[reuse] skip ${s.sessionId}: busy`);
+        continue;
+      }
+      sessionId = s.sessionId;
+      log(`[reuse] matched ${s.sessionId} (pass="${pass.label}")`);
+      break;
     }
     if (sessionId) break;
   }

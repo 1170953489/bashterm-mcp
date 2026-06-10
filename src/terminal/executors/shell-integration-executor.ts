@@ -235,9 +235,21 @@ export class ShellIntegrationExecutor implements TerminalCommandExecutor {
   ): TerminalExecutionResult {
     pending.timedOut = true;
     pending.command.timedOut = true;
+    pending.command.completedAt = Date.now();
+    pending.command.exitCode = undefined;
+    pending.command.outputEndLine = this.outputBuffer.lines.length;
 
     if (!pending.resultResolved) {
       pending.resultResolved = true;
+    }
+
+    // Clean up executor state so the session becomes reusable again.
+    this.commandHistory.push(pending.command);
+    if (this.pendingExecution === pending) {
+      this.pendingExecution = null;
+    }
+    if (this.currentCommand === pending.command) {
+      this.currentCommand = null;
     }
 
     return {
