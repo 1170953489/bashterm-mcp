@@ -43,30 +43,29 @@ export async function handleTerminalRun(
   }
 
   // ── Reuse matching ──────────────────────────────────────────────
-  // Linux / macOS: pick the first active idle terminal, no questions asked.
-  // Windows: two-pass strategy — prefer same/child cwd, then any idle.
+  // Linux / macOS: prefer same cwd, otherwise any idle terminal.
+  // Windows: prefer matching cwd/shell/env, fallback to any idle.
   let sessionId: string | undefined;
   let isNewSession = false;
   const existing = sessionManager.listSessions(input.agentId);
 
+  const isIdle = (s: (typeof existing)[number]) => {
+    if (!s.isActive) return false;
+    const session = sessionManager.getSession(s.sessionId);
+    return session !== undefined && !session.isBusy;
+  };
+
   if (process.platform !== "win32") {
-    for (const s of existing) {
-      if (!s.isActive) {
-        log(`[reuse] skip ${s.sessionId}: not active`);
-        continue;
-      }
-      const session = sessionManager.getSession(s.sessionId);
-      if (!session) {
-        log(`[reuse] skip ${s.sessionId}: session not found`);
-        continue;
-      }
-      if (session.isBusy) {
-        log(`[reuse] skip ${s.sessionId}: busy`);
-        continue;
-      }
-      sessionId = s.sessionId;
-      log(`[reuse] matched ${s.sessionId}`);
-      break;
+    // Prefer same cwd
+    sessionId = existing.find(
+      (s) => s.cwd === cwd && isIdle(s),
+    )?.sessionId;
+    // Fallback: any idle
+    if (!sessionId) {
+      sessionId = existing.find((s) => isIdle(s))?.sessionId;
+    }
+    if (sessionId) {
+      log(`[reuse] matched ${sessionId}`);
     }
   } else {
     // Windows: prefer matching cwd/shell/env, fallback to any idle
