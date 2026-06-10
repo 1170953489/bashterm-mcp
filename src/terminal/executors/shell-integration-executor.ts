@@ -159,6 +159,10 @@ export class ShellIntegrationExecutor implements TerminalCommandExecutor {
           vscode.window.onDidEndTerminalShellExecution((event) => {
             if (event.terminal !== this.terminal) return;
 
+            // Clear the fire-and-forget busy marker when any shell
+            // execution ends, so the terminal becomes reusable again.
+            this._fireAndForgetBusy = false;
+
             const pending = this.pendingExecution;
             if (pending && pending.started && !pending.ended) {
               pending.ended = true;
