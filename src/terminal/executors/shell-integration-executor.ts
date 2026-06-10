@@ -44,6 +44,7 @@ export class ShellIntegrationExecutor implements TerminalCommandExecutor {
   private pendingExecution: PendingTerminalExecution | null = null;
   private shellExecutionDisposable: vscode.Disposable | null = null;
   private shellExecutionEndDisposable: vscode.Disposable | null = null;
+  private _fireAndForgetBusy = false;
 
   constructor(options: ShellIntegrationExecutorOptions) {
     this.sessionId = options.sessionId;
@@ -55,7 +56,12 @@ export class ShellIntegrationExecutor implements TerminalCommandExecutor {
   }
 
   get isBusy(): boolean {
-    return this.currentCommand !== null;
+    return this.currentCommand !== null || this._fireAndForgetBusy;
+  }
+
+  /** Mark the executor busy for fire-and-forget commands. */
+  markBusy(): void {
+    this._fireAndForgetBusy = true;
   }
 
   async execute(

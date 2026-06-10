@@ -127,6 +127,12 @@ export class TerminalSession {
       const commandId = generateCommandId();
       const startedAt = Date.now();
       this.markActivity(startedAt);
+
+      // Mark the session busy so it won't be reused while the
+      // fire-and-forget command is still running.  The caller
+      // obtains a new terminal for their next command.
+      this.shellIntegrationExecutor.markBusy();
+
       this.terminal.show(true);
       this.terminal.sendText(command, true);
 
