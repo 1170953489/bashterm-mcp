@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-06-10
+
+### Changed
+- 简化 Linux/macOS 终端复用逻辑：优先复用同 cwd 的空闲终端，再无则用任意空闲终端，不再检查 shell、env 等匹配
+
 ## [0.6.1] - 2026-06-09
 
 ### Fixed
