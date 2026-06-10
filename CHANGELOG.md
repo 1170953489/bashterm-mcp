@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-06-10
+
+### Fixed
+- 修复 `waitForCompletion: false` 命令未标记终端忙碌，导致后台服务运行期间终端被后续命令复用
+- fire-and-forget 后台命令结束后通过 shell integration end 事件自动解除占用，终端恢复可复用
+
 ## [0.6.2] - 2026-06-10
 
 ### Changed
