@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-06-12
+
+### Added
+- 终端命令中自动禁用交互式 pager：注入 `PAGER=cat MANPAGER=cat GIT_PAGER=cat SYSTEMD_PAGER=cat` 环境变量，避免 `git log`、`git diff`、`man`、`systemctl status` 等命令因启动 `less`/`more` 而卡死
+
 ## [0.6.3] - 2026-06-10
 
 ### Fixed

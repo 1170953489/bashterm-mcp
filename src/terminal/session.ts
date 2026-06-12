@@ -16,6 +16,7 @@ import { CmdScriptExecutor } from "./executors/cmd-script-executor.js";
 import { PowerShellScriptExecutor } from "./executors/powershell-script-executor.js";
 import { ShellIntegrationExecutor } from "./executors/shell-integration-executor.js";
 import type { TerminalExecutionResult } from "./executors/types.js";
+import { disablePager } from "../utils/pager.js";
 
 export class TerminalSession {
   readonly sessionId: string;
@@ -113,6 +114,8 @@ export class TerminalSession {
     timeoutMs: number,
     waitForCompletion: boolean,
   ): Promise<TerminalExecutionResult> {
+    command = disablePager(command);
+
     log(
       `Executing command in session ${this.sessionId}: ${command.slice(0, 80)}`,
     );
